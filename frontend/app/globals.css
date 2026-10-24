@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #262626;
+  --muted: #737373;
+  --line: #efefef;
+  --surface: #fafafa;
+  --bubble: #efefef;
+  --brand-from: #7c3aed;
+  --brand-to: #4f46e5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-surface: var(--surface);
+  --color-bubble: var(--bubble);
+  --color-brand: #6d3df0;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+}
+
+html, body { height: 100%; }
+body {
+  background: #fff;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.brand-gradient { background: linear-gradient(135deg, #8b5cf6 0%, #5b3df5 55%, #4f46e5 100%); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-sheet { animation: sheet-up .28s cubic-bezier(.2,.8,.2,1); }
+.animate-in-fade { animation: fade-in .25s ease-out; }

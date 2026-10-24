@@ -1,0 +1,10 @@
+# Tool settings only (dependencies are in requirements.txt).
+
+[tool.ruff]
+line-length = 130
+
+[tool.ruff.lint]
+ignore = ["B008"]  # FastAPI's Depends() in default arguments is the intended pattern
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
