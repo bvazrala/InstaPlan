@@ -14,22 +14,19 @@ class Settings(BaseSettings):
     # Supabase Postgres in production: postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres
     database_url: str = "sqlite:///./instaplan.db"
 
-    # Supabase Auth
+    # Supabase Auth (Settings → API Keys)
     supabase_url: str = ""
-    supabase_publishable_key: str = ""
-    supabase_service_role_key: str = ""  # seed script only; never used by the API
+    supabase_publishable_key: str = ""  # sb_publishable_...
+    supabase_secret_key: str = ""  # sb_secret_... seed script only; never used by the API
 
     # Fernet key for private columns. Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     private_data_key: str = ""
 
-    # Meta Muse Spark (OpenAI-compatible Meta Model API). Confirm both values at the Meta booth.
+    # Meta Muse Spark (OpenAI-compatible Meta Model API): the group assistant and the private check-ins.
+    # Standard models only: "-contributor" models may use prompts for training (muse_client.py refuses them).
     muse_api_key: str = ""
     muse_base_url: str = "https://api.meta.ai/v1"
-    muse_model: str = "muse-spark-1.1"
-
-    # Gemini: use a key from a billing-enabled project so prompts are not used for training.
-    gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.8-flash"
+    muse_model: str = "muse-spark-1.3"
 
     serpapi_key: str = ""
 

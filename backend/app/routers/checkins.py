@@ -13,7 +13,7 @@ from sqlmodel import Session, delete, select
 from app.auth import CurrentUser, get_current_user
 from app.config import get_settings
 from app.db import get_session
-from app.integrations import gemini, nessie
+from app.integrations import muse_private, nessie
 from app.logic.budget import Bill, default_reason, safe_to_spend
 from app.models import PrivateMessage, PrivatePrefs, User
 from app.privacy.access import require_trip_member
@@ -75,15 +75,15 @@ def my_checkin_thread(trip_id: str, user: CurrentUser = Depends(get_current_user
 @router.post("/checkin", response_model=list[CheckInMessageOut])
 async def reply_to_checkin(trip_id: str, body: SendMessageIn, user: CurrentUser = Depends(get_current_user),
                            session: Session = Depends(get_session)):
-    """The member answers; Gemini replies and updates their private preferences."""
+    """The member answers; Muse replies (a private, stateless request) and updates their private preferences."""
     require_trip_member(session, trip_id, user)
-    if not get_settings().gemini_api_key:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Gemini is not configured")
+    if not get_settings().muse_api_key:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Muse is not configured")
     me = session.get(User, user.id)
     ctx = PrivateContext(trip_id=trip_id, user_id=user.id, first_name=(me.display_name if me else "there").split()[0],
                          prefs=load_prefs(session, trip_id, user.id))
     history = [{"assistant" if m.from_assistant else "member": m.text} for m in _thread(session, trip_id, user.id)]
-    turn = await run_in_threadpool(gemini.checkin_turn, ctx, history, body.text)
+    turn = await run_in_threadpool(muse_private.checkin_turn, ctx, history, body.text)
 
     session.add(PrivateMessage(trip_id=trip_id, user_id=user.id, from_assistant=False, body_encrypted=encrypt_text(body.text)))
     reply = PrivateMessage(trip_id=trip_id, user_id=user.id, from_assistant=True, body_encrypted=encrypt_text(turn.reply))

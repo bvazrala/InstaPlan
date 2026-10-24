@@ -2,7 +2,7 @@
 
 **A trip planner that lives inside the group chat.** It picks up what everyone wants as they talk, checks in privately with each person about budget and limits, and returns trip options that fit the whole group, without anyone seeing anyone else's private answers.
 
-Built at HackTX 2026 for the Meta, SerpApi and Capital One tracks, with Gemini and a .tech domain from MLH.
+Built at HackTX 2026 for the Meta, SerpApi and Capital One tracks, with a .tech domain from MLH.
 
 ---
 
@@ -35,7 +35,7 @@ InstaPlan does two things existing planners don't:
 1. **Trip mention.** Someone types "we should do a trip to NYC" or taps *Plan a trip*. A live trip card appears in the chat.
 2. **Collect.** As the group chats, the assistant (Muse Spark) turns messages into facts on the trip card, and asks one tap-to-answer question when something required is missing.
 3. **Vote.** The group votes "We're going." A majority locks the trip in.
-4. **Private check-in.** The assistant (Gemini) checks in with each person in a private thread: budget, dietary and accessibility needs, private no-gos. A linked Capital One account (Nessie) suggests a safe-to-spend ceiling.
+4. **Private check-in.** The assistant checks in with each person in a private thread: budget, dietary and accessibility needs, private no-gos. A linked Capital One account (Nessie) suggests a safe-to-spend ceiling.
 5. **Options.** SerpApi prices flights, lodging and food per person. Options show per-person cost, travel time and a red-to-green group fit score, sortable by cheapest, fastest, balanced or fairest.
 6. **Pick and settle up.** The group picks an option, logs shared expenses, and pays each other back with one tap through Nessie.
 
@@ -47,8 +47,7 @@ InstaPlan does two things existing planners don't:
 | Backend | Python 3.11+, FastAPI, Pydantic v2, SQLModel, httpx |
 | Real-time | FastAPI WebSockets: one channel per chat, plus private events per user |
 | Database and login | Supabase (PostgreSQL + Auth). SQLite locally until Supabase is set up |
-| Group assistant | Meta Muse Spark via the OpenAI Python SDK (Meta Model API) |
-| Private assistant | Gemini via `google-genai`, on a billing-enabled project |
+| AI | Meta Muse Spark 1.3 (Standard) via the OpenAI Python SDK: group assistant and private check-ins, as separate requests |
 | Travel data | SerpApi: Google Flights, Google Hotels (vacation rentals), Google Maps |
 | Money | Capital One Nessie sandbox: accounts, bills, transfers |
 | Hosting | Vercel (frontend + .tech domain), Railway or Render (backend), Supabase |
@@ -62,7 +61,8 @@ instaplan/
 ├── README.md
 ├── AGENTS.md                  Rules for AI coding assistants working in this repo
 ├── docs/
-│   └── api-contract.md        REST routes and WebSocket events: the frontend ↔ backend agreement
+│   ├── api-contract.md        REST routes and WebSocket events: the frontend ↔ backend agreement
+│   └── supabase-setup.md      Step-by-step Supabase setup
 │
 ├── frontend/                  Next.js app
 │   ├── app/                   Routes
@@ -98,7 +98,7 @@ instaplan/
     │   ├── privacy/           Access checks, encryption, GroupContext vs. PrivateContext
     │   ├── routers/           chats, trips, checkins (owner only), options, expenses, ws
     │   ├── logic/             Pure math: fit score, ranking, budget ceiling, settle up, trip stages
-    │   ├── integrations/      Muse, Gemini, SerpApi, Nessie, response cache
+    │   ├── integrations/      Muse (group side, private side), SerpApi, Nessie, response cache
     │   └── prompts/           Prompt text for the AI models (edit without touching code)
     ├── scripts/seed_demo.py   Demo users, group chat, scripted messages, Nessie accounts
     └── tests/                 Privacy suite (test_privacy.py) and logic tests
@@ -106,7 +106,7 @@ instaplan/
 
 ## Getting started
 
-**You need:** Node 20.9+, Python 3.11+, and (when you're ready for real login) a Supabase project. Without keys, the frontend runs on demo data and the backend on SQLite.
+**You need:** Node 20.9+, Python 3.11+, and (when you're ready for real login) a Supabase project: follow [docs/supabase-setup.md](docs/supabase-setup.md). Without keys, the frontend runs on demo data and the backend on SQLite.
 
 ### Backend
 
@@ -118,7 +118,7 @@ pip install -r requirements.txt
 cp .env.example .env               # fill in keys as you get them
 python -m scripts.seed_demo        # demo users, chat and messages (add --nessie for bank accounts)
 uvicorn app.main:app --reload      # API docs: http://localhost:8000/docs
-pytest                             # run before every merge
+pytest                             # run before every merge (TEST_DATABASE_URL=<scratch Postgres> to test on Postgres)
 ```
 
 ### Frontend
@@ -135,12 +135,11 @@ npm run lint && npm run build      # run before every merge
 
 | Key | Where to get it | Goes in |
 | --- | --- | --- |
-| Supabase URL + publishable key | Supabase → Project Settings → API | `backend/.env` and `frontend/.env.local` |
-| Supabase service role key | Same page | `backend/.env` only (seed script) |
-| `DATABASE_URL` | Supabase → Project Settings → Database | `backend/.env` |
+| Supabase URL + publishable key (`sb_publishable_`) | Supabase → Settings → API Keys | `backend/.env` and `frontend/.env.local` |
+| Supabase secret key (`sb_secret_`) | Same page | `backend/.env` only (seed script) |
+| `DATABASE_URL` | Supabase → **Connect** → Session pooler (see [Supabase setup](docs/supabase-setup.md)) | `backend/.env` |
 | `PRIVATE_DATA_KEY` | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` | `backend/.env` |
-| Muse Spark | Meta booth (confirm base URL + model id) | `backend/.env` |
-| Gemini | MLH table; billing-enabled project | `backend/.env` |
+| Muse Spark | Meta booth or dev.meta.ai; use `muse-spark-1.3`, never a `-contributor` model | `backend/.env` |
 | SerpApi | serpapi.com dashboard | `backend/.env` |
 | Nessie | nessieisreal.com profile page | `backend/.env` |
 
@@ -148,18 +147,20 @@ Only `NEXT_PUBLIC_` values go in the frontend, because Next.js ships them to the
 
 ## Privacy and security
 
-**The promise: no friend ever sees another friend's private information, and the AI that reads the group chat never holds it.** Each rule is enforced in code and covered by `backend/tests/test_privacy.py`.
+**The promise: no friend ever sees another friend's private information, and no request about the group chat ever carries it.** Each rule is enforced in code and covered by `backend/tests/test_privacy.py`.
 
 | Rule | Where it's enforced |
 | --- | --- |
 | The server decides who sees what. Private routes live under `/trips/{id}/me/` and never take a user id from the client | `routers/checkins.py`, `privacy/access.py` |
 | Non-members get 404, so they can't probe what exists | `privacy/access.py` |
 | Private answers and check-in messages are stored in their own tables, encrypted | `models.py`, `privacy/crypto.py` |
-| Muse only accepts a `GroupContext`; Gemini is the only model that gets a `PrivateContext` | `privacy/context.py`, `integrations/muse.py` |
+| Group and private AI work are separate, stateless Muse requests in separate modules: group prompts accept only a `GroupContext`, check-ins only one member's `PrivateContext` | `privacy/context.py`, `integrations/muse_group.py`, `integrations/muse_private.py` |
+| Muse runs on a Standard model, which Meta doesn't train on; `-contributor` models are refused | `integrations/muse_client.py` |
+| Supabase's Data API can't read our tables: every table gets row-level security and the browser roles lose access | `db.py` |
 | `PrivateContext` prints as `<redacted>`, so it can't leak into logs | `privacy/context.py` |
 | `private.*` events go only to their owner; the hub refuses to broadcast them | `realtime.py` |
 | Options carry a fairest rank, never the burden ratio (similar costs would reveal the tightest budget) | `logic/ranking.py`, `schemas.OptionOut` |
-| Budget ceilings are plain math, not a model, and Gemini gets numbers, not transactions | `logic/budget.py`, `integrations/gemini.py` |
+| Budget ceilings are plain math, not a model, and Muse gets numbers, not transactions | `logic/budget.py`, `integrations/muse_private.py` |
 | Private budgets only shape options in groups of 3 or more | `privacy/access.py` |
 | The WebSocket token goes in the first message, not the URL, so it stays out of logs | `routers/ws.py`, `frontend/lib/socket.ts` |
 | All API keys stay on the server | `config.py`, `frontend/.env.example` |
@@ -169,14 +170,14 @@ Only `NEXT_PUBLIC_` values go in the frontend, because Next.js ships them to the
 **Adding an endpoint? Check four things:**
 1. It calls `require_trip_member` or `require_chat_member`.
 2. Its response model in `schemas.py` has no private field.
-3. Private data only flows to `/me/` routes, Gemini, or `logic/`.
+3. Private data only flows to `/me/` routes, `muse_private.py`, or `logic/`.
 4. `pytest` still passes.
 
 ## Build status
 
 Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/artifact/CrHqorKajgLeBzuyFhqVjT). Every screen in the UI already exists on demo data. "Wire" means connecting it to the backend.
 
-"Done" means implemented and tested locally. The Muse, Gemini, SerpApi and Nessie calls haven't been run against live keys yet, so test each one as soon as you have its key.
+"Done" means implemented and tested locally. The Muse, SerpApi and Nessie calls haven't been run against live keys yet, so test each one as soon as you have its key.
 
 | Feature | Req | Backend | Frontend |
 | --- | --- | --- | --- |
@@ -187,7 +188,7 @@ Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/ar
 | Edit or delete a fact | R5 | Done | Wire the pencil button |
 | One-tap nudges | R6 | `muse.write_nudge` ready; trigger it | Wire |
 | Vote to lock in | R8 | Done | Wire |
-| Private check-in thread | R9, R22 | Done (Gemini); start it on lock-in | Show as a private thread, wire |
+| Private check-in thread | R9, R22 | Done (Muse, private side); start it on lock-in | Show as a private thread, wire |
 | Final-touches summary | R10 | To do | To do |
 | Nessie budget suggestion | R11 | Done | Wire |
 | Generate options (SerpApi) | R12 | To do: `pipeline.generate_options` lists the steps | Wire |
@@ -195,7 +196,7 @@ Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/ar
 | Pick an option | R15 | Done | Wire |
 | Tweak in plain words | R16 | To do | Input exists |
 | Settle up through Nessie | R17 | Done | Wire |
-| Privacy test suite | R23 | Done (14 tests) | |
+| Privacy test suite | R23 | Done (18 tests) | |
 | Trip poster (Muse Image) | R18 | Stretch | Placeholder exists |
 | Voice notes, local outings | R7, R19 | Stretch | |
 
@@ -206,7 +207,7 @@ Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/ar
 | Workstream | Folders |
 | --- | --- |
 | **Chat app** | `frontend/app`, `frontend/components/{chat,private,ui}`, `frontend/lib/{api,socket,supabase}.ts` |
-| **AI** | `backend/app/integrations/{muse,gemini}.py`, `backend/app/prompts/`, `backend/app/pipeline.py` (`on_group_message`), `backend/app/privacy/context.py` |
+| **AI** | `backend/app/integrations/muse_{client,group,private}.py`, `backend/app/prompts/`, `backend/app/pipeline.py` (`on_group_message`), `backend/app/privacy/context.py` |
 | **Data and ranking** | `backend/app/integrations/{serpapi_client,cache}.py`, `backend/app/logic/{fit,ranking}.py`, `pipeline.generate_options`, `frontend/components/trip/options/` |
 | **Backend and money** | `backend/app/{main,db,auth,models,schemas,realtime}.py`, `backend/app/routers/`, `backend/app/integrations/nessie.py`, `backend/app/logic/{budget,settle}.py`, `backend/scripts/`, `backend/tests/` |
 

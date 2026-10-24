@@ -38,11 +38,14 @@ SCRIPT = [
 
 
 def supabase_user_id(email: str) -> str | None:
-    """Creates the Auth user (or finds it) with the service role key. Returns None if Supabase isn't set up."""
+    """Creates the Auth user (or finds it) with the secret key. Returns None if Supabase isn't set up."""
     s = get_settings()
-    if not (s.supabase_url and s.supabase_service_role_key):
+    key = s.supabase_secret_key
+    if not (s.supabase_url and key):
         return None
-    headers = {"apikey": s.supabase_service_role_key, "Authorization": f"Bearer {s.supabase_service_role_key}"}
+    headers = {"apikey": key}  # sb_secret_ keys go in the apikey header only
+    if key.startswith("eyJ"):  # legacy service_role JWT
+        headers["Authorization"] = f"Bearer {key}"
     res = httpx.post(f"{s.supabase_url}/auth/v1/admin/users", headers=headers,
                      json={"email": email, "password": PASSWORD, "email_confirm": True}, timeout=10)
     if res.status_code < 300:

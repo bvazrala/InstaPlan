@@ -34,7 +34,7 @@ def safe_to_spend(balance: float, bills_before_trip: Sequence[Bill]) -> Ceiling:
 
 
 def default_reason(c: Ceiling) -> str:
-    """One-line explanation. Gemini may rephrase it, but only from these numbers."""
+    """One-line explanation. Muse may rephrase it in the private check-in, but only from these numbers."""
     if c.largest_bill:
         return f"{c.largest_bill.payee} (${c.largest_bill.amount:,.0f}) is due before the trip, so we kept a ${c.cushion:,.0f} cushion."
     return f"No bills are due before the trip; we kept a ${c.cushion:,.0f} cushion."

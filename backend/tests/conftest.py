@@ -1,11 +1,13 @@
-"""Test setup: in-memory SQLite, a fresh encryption key, and fake auth via the X-Test-User header."""
+"""Test setup: in-memory SQLite (or TEST_DATABASE_URL), a fresh encryption key, and fake auth via the X-Test-User header."""
 
 import os
 
 from cryptography.fernet import Fernet
 
-os.environ.update(DATABASE_URL="sqlite://", APP_ENV="test", PRIVATE_DATA_KEY=Fernet.generate_key().decode(),
-                  SUPABASE_URL="", MUSE_API_KEY="", GEMINI_API_KEY="")
+# Tests drop and recreate every table, so they never read DATABASE_URL. To run them on a scratch Postgres,
+# set TEST_DATABASE_URL (never your Supabase database).
+os.environ.update(DATABASE_URL=os.environ.get("TEST_DATABASE_URL", "sqlite://"), APP_ENV="test",
+                  PRIVATE_DATA_KEY=Fernet.generate_key().decode(), SUPABASE_URL="", MUSE_API_KEY="")
 
 import pytest
 from fastapi import Header
