@@ -2,15 +2,11 @@
 
 import { usePlanner } from "@/lib/planner-context";
 import PlannerPanel from "@/components/planner/PlannerPanel";
-import { useTrip } from "@/lib/trip-context";
 import { useLiveOptions } from "@/lib/live-options";
 import OptionsView from "@/components/trip/options/OptionsView";
 import { Button } from "@/components/ui/primitives";
-import TripStart from "@/components/trip/TripStart";
-import TripPanel from "@/components/trip/TripPanel";
 
-export default function PanelBody({ onClose }: { onClose?: () => void }) {
-  const { stage } = useTrip();
+export default function PanelBody() {
   const live = useLiveOptions();
   const planner = usePlanner();
   if (planner) return <PlannerPanel/>;
@@ -33,5 +29,5 @@ export default function PanelBody({ onClose }: { onClose?: () => void }) {
       </>}
     </div>;
   }
-  return stage === "idle" ? <TripStart onClose={onClose} /> : <TripPanel onClose={onClose} />;
+  return <p className="p-5 text-sm text-muted">Choose + Planner in the group chat to start.</p>;
 }

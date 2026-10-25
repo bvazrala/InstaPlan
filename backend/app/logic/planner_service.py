@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from app.config import get_settings
 from app.logic.listening import (new_template, effective_attendance, attending, missing_fields,
-                                 semantic_signature, public_text, safe_updates, ground_timing, FIELD_ALIASES)
+                                 semantic_signature, public_text, safe_updates, ground_timing, FIELD_ALIASES, listener_text, conversation_poll_ready)
 from app.logic.generation import public_status, recent
 from app.models import (Trip, PlannerSession, PlannerApproval, ListeningBatch, Message,
                         OptionGeneration, TripOption, VenueRecommendation)
@@ -28,7 +28,7 @@ def age(value):
 
 
 def active(session, chat_id):
-    return session.exec(select(PlannerSession).join(Trip).where(Trip.chat_id == chat_id)
+    return session.exec(select(PlannerSession).join(Trip).where(Trip.chat_id == chat_id, PlannerSession.status != 'archived')
                         .order_by(PlannerSession.created_at.desc())).first()
 
 
@@ -38,17 +38,32 @@ def create(session, chat_id, user_id, body):
     except (ZoneInfoNotFoundError, ValueError):
         raise HTTPException(422, "Choose a valid timezone.") from None
     trip = Trip(chat_id=chat_id, created_by=user_id)
-    session.add(trip)
-    session.flush()
     try:
         template = new_template(body.title, body.topic, body.location, initiator=user_id,
                                 members=tuple(sorted(member_ids(session, chat_id))))
     except ValueError as exc:
         raise HTTPException(422,str(exc)) from None
-    if public_text(body.title + body.location) != body.title + body.location:
-        raise HTTPException(422, "Keep financial details in your private check-in.")
+    public_label = body.title if body.place_id else body.title + ' ' + body.location
+    if listener_text(public_label,public_budget=body.flow=='conversation') != public_label:
+        raise HTTPException(422, "Keep bank details and precise origins out of the public plan.")
+    if body.flow == 'conversation':
+        template['budget'] = {}
+    if body.place_id:
+        if not body.session_token:
+            raise HTTPException(422,'Select a location from the Maps suggestions.')
+        from app.integrations.places import details, PlacesUnavailable
+        try:
+            selected = details(session,body.place_id,body.session_token)
+        except PlacesUnavailable as exc:
+            raise HTTPException(503,str(exc)) from None
+        template['where']['destination'] = selected if selected['kind']=='venue' else None
+        template['where']['search_area'] = (selected.get('address') or selected['name']) if selected['kind']=='area' else None
+        template['sources']['where.destination:group' if selected['kind']=='venue' else 'where.search_area:group']='manual'
+    # The Places cache owns a separate session. Finish its write before taking SQLite's planner write lock.
+    session.add(trip)
+    session.flush()
     planner = PlannerSession(trip_id=trip.id, title=template['title'], topic=body.topic,
-                             timezone=body.timezone, template=template)
+                             timezone=body.timezone, template=template, internal={'simple_flow':body.flow=='conversation'})
     session.add(planner)
     session.commit()
     return planner
@@ -56,7 +71,7 @@ def create(session, chat_id, user_id, body):
 
 def require_planner(session, trip_id):
     planner = session.get(PlannerSession, trip_id)
-    if planner is None:
+    if planner is None or planner.status=='archived':
         raise HTTPException(404, "Planner not found.")
     return planner
 
@@ -80,7 +95,7 @@ def save(session, planner, template=None, *, internal=None, **values):
     if template is not None:
         values['template'] = template
         values['title'] = template['title']
-        if semantic_signature(template) != semantic_signature(planner.template):
+        if semantic_signature(template) != semantic_signature(planner.template) and "approval_revision" not in values:
             values['approval_revision'] = planner.approval_revision + 1
     if internal is not None:
         values['internal'] = internal
@@ -110,6 +125,8 @@ def synchronize_members(session, planner):
 
 
 def snapshot(session, planner):
+    if planner.status=='archived':
+        raise HTTPException(404,'Planner not found.')
     synchronize_members(session,planner)
     trip = session.get(Trip, planner.trip_id)
     batches = session.exec(select(ListeningBatch).where(ListeningBatch.trip_id == trip.id,
@@ -130,24 +147,25 @@ def snapshot(session, planner):
     if planner.topic == 'Travel' and planner.status in {'approved', 'picked'} and run and run.status == 'ready':
         from app.logic.generation import revision
         valid_results = run.published_revision == revision(session, trip)
-    if planner.topic == 'Travel':
+    from app.logic.planner_recommendations import place_fallback
+    if planner.topic == 'Travel' and not place_fallback(planner) and not (run and run.result.get('recommendation_kind')=='venues'):
         options = session.exec(select(TripOption).where(TripOption.trip_id == trip.id)).all() if valid_results else []
-        recommendations = {'kind': 'travel', 'options': [OptionOut.model_validate(r.data) for r in options]}
+        recommendations = {'kind': 'travel', 'options': sorted([OptionOut.model_validate(r.data) for r in options],key=lambda item:(item.recommendation_rank or 999,item.id))}
     else:
         rows = session.exec(select(VenueRecommendation).where(VenueRecommendation.trip_id == trip.id,
                             VenueRecommendation.revision == planner.approval_revision)).all() if valid_results else []
-        recommendations = {'kind': 'venues', 'venues': [VenueOut.model_validate(r.data) for r in rows]}
+        recommendations = {'kind': 'venues', 'venues': sorted([VenueOut.model_validate(r.data) for r in rows],key=lambda item:(item.recommendation_rank or 999,item.id))}
     return PlannerOut(trip_id=trip.id, title=planner.title, topic=planner.topic, timezone=planner.timezone,
         revision=planner.revision, approval_revision=planner.approval_revision, status=planner.status,
         template=planner.template, attendance=effective_attendance(planner.template),
         poll={'eligible': eligible, 'approvals': sorted(v.user_id for v in votes if v.approve and v.user_id in eligible),
-              'changes': sorted(v.user_id for v in votes if not v.approve and v.user_id in eligible),
-              'required': max(1, ceil(planner.threshold * len(eligible))), 'threshold': planner.threshold,
-              'ready': not missing and listening == 'idle' and bool(eligible)},
+              'changes': sorted(v.user_id for v in votes if not v.approve and (v.user_id in eligible or planner.internal.get('simple_flow'))),
+              'required': max(2 if planner.internal.get('simple_flow') and len(eligible)>1 else 1, ceil(planner.threshold * len(eligible))), 'threshold': planner.threshold,
+              'ready': conversation_poll_ready(planner.template) if planner.internal.get('simple_flow') else not missing and listening == 'idle' and bool(eligible)},
         listening=listening, missing=missing, generation=generation, recommendations=recommendations,
         provenance={m.id:m.sender_id for m in session.exec(select(Message).where(Message.chat_id==trip.chat_id,
             Message.id.in_(list(planner.template.get('sources',{}).values())))).all()},
-        priced_members=planner.approved_members, picked_id=trip.picked_option_id)
+        priced_members=planner.approved_members, picked_id=trip.picked_option_id,simple_flow=bool(planner.internal.get('simple_flow')))
 
 
 def edit(session, planner, body, actor):
@@ -170,12 +188,12 @@ def edit(session, planner, body, actor):
             template['where']['origins'][actor] = body.value.strip()
         else:
             updates = [{'field': body.field, 'value': body.value, 'user_id': actor if body.field in
-                        {'attendance','preferences','hard_constraints','when.flexibility'} else None,
+                        {'attendance','preferences','hard_constraints','when.flexibility','budget'} else None,
                         'source_message_id': 'manual'}]
             template, decisions = safe_updates(template, updates, [{'id':'manual', 'user_id':actor}])
             if not decisions or not all(d['accepted'] for d in decisions):
                 raise HTTPException(422, "That value is not valid for this field.")
-        key = f"{body.field}:{actor if body.field in {'attendance','preferences','hard_constraints','when.flexibility','where.origins'} else 'group'}"
+        key = f"{body.field}:{actor if body.field in {'attendance','preferences','hard_constraints','when.flexibility','where.origins','budget'} else 'group'}"
         internal.setdefault('field_versions', {})[key] = planner.revision + 1
         template['sources'][key] = 'manual'
         save(session, planner, template, internal=internal)
@@ -241,13 +259,16 @@ def claim_batch(session):
 
 def listener_context(session, planner, batch):
     from app.privacy.context import GroupContext, GroupMember
-    from app.models import User
+    from app.models import User, DemoChatState
     trip = session.get(Trip, planner.trip_id)
     messages = session.exec(select(Message).where(Message.chat_id == trip.chat_id).order_by(Message.sent_at, Message.id)).all()
+    reset=session.get(DemoChatState,trip.chat_id)
+    if reset:
+        messages=[m for m in messages if m.sent_at.replace(tzinfo=UTC)>=reset.reset_at.replace(tzinfo=UTC)]
     indices = [i for i,m in enumerate(messages) if m.id in batch.message_ids]
-    current = [{'id':m.id,'user_id':m.sender_id,'text':public_text(m.body)} for m in messages if m.id in batch.message_ids]
+    current = [{'id':m.id,'user_id':m.sender_id,'text':listener_text(m.body,public_budget='budget' in planner.template)} for m in messages if m.id in batch.message_ids]
     def context_messages(items):
-        return [{'id':m.id,'user_id':m.sender_id,'text':public_text(m.body)} for m in items]
+        return [{'id':m.id,'user_id':m.sender_id,'text':listener_text(m.body,public_budget='budget' in planner.template)} for m in items]
     template = deepcopy(planner.template)
     template['where'].pop('origins', None)
     template.pop('base_location', None)

@@ -31,14 +31,14 @@ def private_revision(session: Session, trip_id: str) -> str:
     return hashlib.sha256(json.dumps(value).encode()).hexdigest()
 
 
-def evaluate_options(session: Session, trip_id: str, candidates: list[TripCandidate], planning: PlanningInput) -> list[OptionOut]:
+def evaluate_options(session: Session, trip_id: str, candidates: list[TripCandidate], planning: PlanningInput, *, include_private=True, public_ceilings=None) -> list[OptionOut]:
     if not candidates:
         return []
     ids = {person.user_id for candidate in candidates for person in candidate.participants}
-    rows = session.exec(select(PrivatePrefs).where(PrivatePrefs.trip_id == trip_id)).all()
+    rows = session.exec(select(PrivatePrefs).where(PrivatePrefs.trip_id == trip_id)).all() if include_private else []
     preferences = list(planning.preferences)
     constraints = list(planning.constraints)
-    ceilings = {}
+    ceilings = {uid:Decimal(str(value)) for uid,value in (public_ceilings or {}).items() if value is not None}
     for row in rows:
         if row.user_id not in ids:
             continue
@@ -82,12 +82,12 @@ def evaluate_options(session: Session, trip_id: str, candidates: list[TripCandid
     order = sorted(order, key=lambda candidate: not evaluated[candidate.id].pick_eligible)[:12]
     fairest = {candidate.id: index + 1 for index, candidate in enumerate(rank_candidates(order, "fairest", ceilings=ceilings))}
     result = []
-    for candidate in order:
+    for recommendation_rank,candidate in enumerate(order,1):
         fit = evaluated[candidate.id]
         # Namespace IDs by trip, preventing identical itineraries in different trips colliding.
         option_id = "opt-" + hashlib.sha256(f"{trip_id}:{candidate.id}".encode()).hexdigest()[:24]
         result.append(OptionOut(
-            id=option_id, title=candidate.title, place=candidate.place, dates=candidate.dates,
+            recommendation_rank=recommendation_rank,id=option_id, title=candidate.title, place=candidate.place, dates=candidate.dates,
             nights=candidate.nights, lodging=candidate.lodging_name,
             lodging_share=float(candidate.lodging_price.amount / len(candidate.participants)), daily=0,
             fit=fit.fit, certainty=fit.certainty, cats=fit.cats, fairest_rank=fairest[candidate.id],
@@ -103,6 +103,9 @@ def evaluate_options(session: Session, trip_id: str, candidates: list[TripCandid
             price_coverage=candidate.lodging_price.status.value, feasibility=fit.feasibility,
             pick_eligible=fit.pick_eligible, capacity_ack_required=fit.capacity_ack_required,
             warnings=list(fit.warnings), priced_at=candidate.priced_at,
+            image_url=candidate.lodging_image_url if candidate.lodging_image_url and candidate.lodging_image_url.startswith(('https://','http://')) else None,
+            lodging_rating=candidate.lodging_rating, lodging_review_count=candidate.lodging_review_count,
+            lodging_amenities=list(candidate.lodging_amenities)[:3],
             listing_url=candidate.listing_url if candidate.listing_url and candidate.listing_url.startswith(("https://", "http://")) else None,
         ))
     return result

@@ -392,6 +392,7 @@ class Property(BaseModel):
 
     source: dict[str, Any] = {}
     name: str | None = None
+    image_url: str | None = None
     accommodation_type: str | None = None
     rate_per_night: PriceDict | None = None
     total_rate: PriceDict | None = None
@@ -435,6 +436,7 @@ class Property(BaseModel):
         return cls(
             source={"engine": engine, "array_name": "properties"},
             name=_safe_str(src.get("name")),
+            image_url=_safe_str(src.get('thumbnail')) or next((_safe_str(image.get('original_image') or image.get('thumbnail')) for image in (src.get('images') or []) if isinstance(image,dict) and (image.get('original_image') or image.get('thumbnail'))),None),
             accommodation_type=_safe_str(src.get("accommodation_type") or src.get("type")),
             rate_per_night=PriceDict.from_dict(src.get("rate_per_night")),
             total_rate=PriceDict.from_dict(src.get("total_rate")),
@@ -461,6 +463,7 @@ class Place(BaseModel):
 
     source: dict[str, Any] = {}
     title: str | None = None
+    image_url: str | None = None
     category: str | None = None  # mapped from "type"
     types: list[str] = []
     rating: float | None = None
@@ -489,6 +492,7 @@ class Place(BaseModel):
         return cls(
             source={"engine": engine, "array_name": "local_results"},
             title=_safe_str(src.get("title")),
+            image_url=_safe_str(src.get("thumbnail")),
             category=_safe_str(src.get("type")),
             types=[t for t in types if t],
             rating=_safe_float(src.get("rating")),

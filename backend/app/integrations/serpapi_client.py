@@ -66,7 +66,7 @@ class SerpApiClient:
                         metadata = data.get("search_metadata") or {}
                         if not isinstance(metadata, dict) or any(
                             key in data and not isinstance(data[key], list)
-                            for key in ("best_flights", "other_flights", "properties", "local_results")):
+                            for key in ("best_flights", "other_flights", "properties", "local_results", "events_results")):
                             raise TravelDataError("malformed_response")
                         if data.get("error") or metadata.get("status") == "Error":
                             raise TravelDataError("provider_error")

@@ -35,7 +35,7 @@ def cached(session: Session, provider: str, params: dict[str, Any], fetch: Calla
     key = cache_key(provider, params)
     hit = session.get(ApiCache, key)
     def empty(response):
-        return not any(response.get(k) for k in ("best_flights", "other_flights", "properties", "local_results"))
+        return not any(response.get(k) for k in ("best_flights", "other_flights", "properties", "local_results", "events_results", "booking_options", "place_results"))
     if hit is not None:
         fetched = hit.fetched_at.replace(tzinfo=UTC) if hit.fetched_at.tzinfo is None else hit.fetched_at
         ttl = min(ttl_seconds, empty_ttl_seconds) if empty(hit.response) else ttl_seconds

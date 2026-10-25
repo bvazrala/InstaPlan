@@ -18,7 +18,7 @@ def headers(uid='alice'):
 
 def create(client,world,topic='Dining'):
     response=client.post('/chats/test-chat/planners',headers=headers(),json={
-        'title':'Weekend together','topic':topic,'location':'Austin','timezone':'America/Chicago'})
+        'title':'Weekend together','topic':topic,'flow':'legacy','location':'Austin','timezone':'America/Chicago'})
     assert response.status_code==201,response.text
     return response.json()
 
@@ -395,3 +395,185 @@ def test_manual_aliases_protect_the_canonical_field_and_blank_titles_are_rejecte
         planner=session.get(PlannerSession,p['tripId'])
         assert planner.internal['field_versions']['trip_type:group']==p['revision']
         assert planner.template['sources']['trip_type:group']=='manual'
+
+
+def test_widgets_use_maps_photos_and_optional_events_without_losing_venues(client,world,monkeypatch):
+    p=ready(client,create(client,world,'Entertainment'))
+    p=edit(client,p,'activity_type','concert')
+    queries=[]
+    def search(self,params):
+        queries.append(params['engine'])
+        if params['engine']=='google_events':
+            return {'events_results':[{'title':'Artist live','venue':{'name':'Moody Center'},'date':{'when':'Sat, November 7'},
+                'image':'https://images.example/concert.jpg','ticket_info':[{'link':'https://tickets.example/live'}]}]}
+        return {'local_results':[{'title':'Moody Center','place_id':'venue-id','thumbnail':'https://images.example/venue.jpg','reviews':45,'rating':4.8}]}
+    monkeypatch.setattr('app.integrations.serpapi_client.SerpApiClient.search',search)
+    p=vote(client,p).json();p=vote(client,p,'bob').json()
+    p=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    venue=p['recommendations']['venues'][0]
+    assert queries==['google_maps','google_events']
+    assert venue['imageUrl']=='https://images.example/venue.jpg' and venue['reviewCount']==45
+    assert venue['special']['kind']=='concert' and venue['special']['choices']==[]
+    assert 'status' not in venue  # A search timestamp is not verified opening hours.
+    def failed_optional(self,params):
+        if params['engine']=='google_events':raise RuntimeError('PROVIDER-SECRET')
+        return {'local_results':[{'title':'Moody Center','place_id':'venue-id'}]}
+    monkeypatch.setattr('app.integrations.serpapi_client.SerpApiClient.search',failed_optional)
+    client.post(f"/trips/{p['tripId']}/planner/retry",headers=headers())
+    p=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    assert p['generation']['status']=='ready' and p['recommendations']['venues'][0]['special'] is None
+    assert 'PROVIDER-SECRET' not in str(p)
+
+
+def test_flight_widget_is_owner_scoped_and_does_not_fetch_without_permission(client,world,monkeypatch):
+    from app.models import WidgetItinerary, OptionGeneration
+    from app.logic.generation import revision
+    p=ready(client,create(client,world,'Travel'))
+    p=vote(client,p).json();p=vote(client,p,'bob').json()
+    with Session(engine) as session:
+        run=session.get(OptionGeneration,p['tripId']);run.status='ready'
+        run.published_revision=revision(session,session.get(Trip,p['tripId']));session.add(run)
+        for uid,origin in [('alice','AUS'),('bob','BOS')]:
+            session.add(WidgetItinerary(trip_id=p['tripId'],option_id='same-option',user_id=uid,data={
+                'origin':origin,'destination':'JFK','outbound':'2026-11-05','inbound':'2026-11-09','image':'https://images.example/stay.jpg',
+                'image_alt':'Destination stay','booking_token':f'private-provider-{uid}','currency':'USD','cost':100,'retrieved_at':'2026-10-25T12:00:00+00:00'}))
+        session.commit()
+    calls=[]
+    def search(self,params):
+        calls.append(params)
+        return {'booking_options':[{'together':{'booking_request':{'url':'https://airline.example/booking'}}}]}
+    monkeypatch.setattr('app.integrations.serpapi_client.SerpApiClient.search',search)
+    path=f"/trips/{p['tripId']}/me/widget/flight"
+    assert client.post(path,headers=headers(),json={'optionId':'same-option','locationGranted':False}).json()['special'] is None
+    assert calls==[]
+    own=client.post(path,headers=headers(),json={'optionId':'same-option','locationGranted':True,'userId':'bob','demoSpeakerId':'bob'})
+    assert own.status_code==200,own.text
+    assert own.json()['special']['forViewerId']=='alice' and own.json()['special']['originCode']=='AUS'
+    assert calls[0]['booking_token']=='private-provider-alice'
+    assert 'private-provider' not in own.text and 'BOS' not in own.text and 'budget' not in own.text.lower()
+    assert client.post(path,headers=headers('dan'),json={'optionId':'same-option','locationGranted':True}).status_code==404
+    group=client.get(f"/trips/{p['tripId']}/planner",headers=headers('bob'))
+    assert 'private-provider' not in group.text
+
+
+def conversation_plan(client,world,topic='Dining',**extra):
+    response=client.post('/chats/test-chat/planners',headers=headers(),json={'title':'Saturday together','topic':topic,'location':'Austin',**extra})
+    assert response.status_code==201,response.text
+    return response.json()
+
+
+def test_new_creation_picks_city_or_exact_venue_through_maps(client,world,monkeypatch):
+    monkeypatch.setattr('app.integrations.places.autocomplete',lambda query,token:[{'id':'city','label':'Austin, TX'}])
+    response=client.post('/chats/test-chat/planner/places',headers=headers(),json={'query':'Austin','sessionToken':'abcdefghijklmnop'})
+    assert response.status_code==200 and response.json()[0]['id']=='city'
+    assert client.post('/chats/test-chat/planner/places',headers=headers('dan'),json={'query':'Austin','sessionToken':'abcdefghijklmnop'}).status_code==404
+    calls=[]
+    def details(session,place_id,token):
+        calls.append((place_id,token));return {'id':place_id,'name':'Austin','address':'Austin, TX','kind':'area','url':None}
+    monkeypatch.setattr('app.integrations.places.details',details)
+    p=conversation_plan(client,world,placeId='city',sessionToken='abcdefghijklmnop')
+    assert p['simpleFlow'] and p['template']['where']['searchArea']=='Austin, TX'
+    assert p['template']['budget']=={} and calls==[('city','abcdefghijklmnop')]
+
+
+def join_conversation(client, p):
+    for uid in ('alice', 'bob'):
+        result = client.post('/chats/test-chat/messages', headers=headers(uid), json={'text': 'Let us plan together'})
+        assert result.status_code in (200, 201), result.text
+    return client.get(f"/trips/{p['tripId']}/planner", headers=headers()).json()
+
+
+def test_rsvp_joins_declines_and_accumulates_votes_without_resetting_others(client,world):
+    p=join_conversation(client,conversation_plan(client,world))
+    p=edit(client,p,'when.agreed','Saturday evening')
+    path=f"/trips/{p['tripId']}/planner/respond"
+    def response(user,going):
+        return client.post(path,headers=headers(user),json={'revision':p['approvalRevision'],'going':going})
+    first=response('alice',True)
+    assert first.status_code==200,first.text
+    p=first.json();assert p['poll']['approvals']==['alice'] and p['attendance']['alice']['status']=='going'
+    second=response('bob',False)
+    assert second.status_code==200,second.text
+    p=second.json();assert p['poll']['approvals']==['alice'] and p['attendance']['bob']['status']=='not_going'
+    final=response('cara',True)
+    assert final.status_code==200,final.text
+    p=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    assert p['status']=='approved' and p['pricedMembers']==['alice','cara']
+    assert p['poll']['changes']==['bob'] and len(p['recommendations']['venues'])==1
+
+
+def test_new_travel_uses_a_real_stay_fallback_without_guessing_airports(client,world):
+    p=join_conversation(client,conversation_plan(client,world,'Travel'))
+    p=edit(client,p,'trip_type','train');p=edit(client,p,'when.agreed','Next month')
+    path=f"/trips/{p['tripId']}/planner/respond"
+    for uid in ['alice','bob']:
+        result=client.post(path,headers=headers(uid),json={'revision':p['approvalRevision'],'going':True})
+        assert result.status_code==200,result.text
+        p=result.json()
+    p=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    assert p['generation']['status']=='ready' and p['recommendations']['kind']=='venues'
+    assert p['recommendations']['venues'][0]['kind']=='stay'
+    assert p['template']['where']['origins']=={}
+
+
+def test_new_demo_never_loads_historical_private_requirements(client,world):
+    p=join_conversation(client,conversation_plan(client,world))
+    with Session(engine) as session:
+        session.add(PrivatePrefs(trip_id=p['tripId'],user_id='alice',data_encrypted='NOT-A-VALID-PRIVATE-TOKEN'))
+        session.commit()
+    p=edit(client,p,'when.agreed','Saturday')
+    for uid in ['alice','bob']:
+        result=client.post(f"/trips/{p['tripId']}/planner/respond",headers=headers(uid),json={'revision':p['approvalRevision'],'going':True})
+        assert result.status_code==200,result.text
+    p=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    assert p['recommendations']['venues'][0]['pickEligible']
+    assert 'NOT-A-VALID' not in str(p) and 'private' not in p['template']
+
+
+
+def test_creation_maps_cache_does_not_deadlock_sqlite_writer(tmp_path,monkeypatch):
+    from sqlmodel import create_engine,SQLModel
+    from app.models import User,Chat,ChatMember,ApiCache
+    from app.schemas import PlannerCreate
+    database=create_engine('sqlite:///'+str(tmp_path/'planner-cache.db'),connect_args={'timeout':.1})
+    SQLModel.metadata.create_all(database)
+    monkeypatch.setattr('app.integrations.places.request',lambda *a,**k:{
+        'id':'test-place','displayName':{'text':'Test Cafe'},'formattedAddress':'Austin, TX',
+        'types':['restaurant'],'googleMapsUri':'https://maps.google.com/test'})
+    with Session(database) as session:
+        session.add(User(id='alice',display_name='Alice',handle='alice'))
+        session.add(Chat(id='cache-chat',name='Crew'));session.commit()
+        session.add(ChatMember(chat_id='cache-chat',user_id='alice'));session.commit()
+        planner=svc.create(session,'cache-chat','alice',PlannerCreate(
+            title='Dinner',topic='Dining',place_id='test-place',session_token='abcdefghijklmnop'))
+        assert planner.template['where']['destination']['name']=='Test Cafe'
+        assert len(session.exec(select(ApiCache)).all())==1
+    database.dispose()
+
+
+def test_half_group_opens_poll_without_manual_availability_or_idle_listener(client, world):
+    from app.logic.listening import conversation_poll_ready
+    t = new_template('Dinner', 'Dining', members=('a', 'b', 'c', 'd'))
+    t['spoke'] = ['a', 'outsider', 'a']
+    assert not conversation_poll_ready(t)
+    t['spoke'].append('b')
+    assert conversation_poll_ready(t)
+    p = conversation_plan(client, world)
+    assert not p['poll']['ready']
+    p = join_conversation(client, p)
+    assert p['poll']['ready'] and p['missing']
+    # Readiness survives queued inference and does not require opening the editor.
+    with Session(engine) as session:
+        planner = session.get(PlannerSession, p['tripId'])
+        session.add(ListeningBatch(trip_id=planner.trip_id, epoch=planner.epoch, message_ids=[]))
+        session.commit()
+    p = client.get(f"/trips/{p['tripId']}/planner", headers=headers()).json()
+    assert p['listening'] == 'queued' and p['poll']['ready']
+    result = client.post(f"/trips/{p['tripId']}/planner/respond", headers=headers(),
+                        json={'revision':p['approvalRevision'], 'going':False})
+    assert result.status_code == 200, result.text
+    p = result.json()
+    assert p['attendance']['alice']['status'] == 'not_going'
+    result = client.post(f"/trips/{p['tripId']}/planner/respond", headers=headers(),
+                        json={'revision':p['approvalRevision'], 'going':True})
+    assert result.status_code == 200 and result.json()['poll']['approvals'] == ['alice']

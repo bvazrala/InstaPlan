@@ -1,6 +1,6 @@
 // Shared frontend types. Field names match the backend's camelCase JSON (see docs/api-contract.md).
 
-export type Member = { id: string; name: string; handle: string; hue: number; origin: string | null };
+export type Member = { avatarUrl?:string|null; id: string; name: string; handle: string; hue: number; origin: string | null };
 
 export type Chat = { id: string; name: string; sub: string; unread?: number; members: string[]; group?: boolean };
 
@@ -52,6 +52,7 @@ export type Option = {
   capacityAckRequired?: boolean;
   warnings?: string[];
   costScope?: "flights_and_lodging";
+  imageUrl?: string | null; lodgingRating?: number | null; lodgingReviewCount?: number | null; lodgingAmenities?: string[];
   listingUrl?: string | null;
   pricedAt?: string | null;
 };
@@ -77,6 +78,7 @@ export type SortKey = "cheapest" | "fastest" | "balanced" | "fairest";
 /** Events the backend pushes over the chat WebSocket. `private.*` events are only ever sent to their owner. */
 export type ServerEvent =
   | { type: "chat.ready" }
+  | { type: "chat.reset"; chatId:string;resetAt:string }
   | { type: "planner.updated"; tripId: string }
   | { type: "message.new"; message: ChatMessage }
   | { type: "trip.offer"; chatId: string }
@@ -87,13 +89,19 @@ export type ServerEvent =
   | { type: "error"; detail: string };
 
 export type PlannerTopic = "Dining" | "Travel" | "Entertainment";
-export type Venue = { fit: number | null; id: string; title: string; address: string | null; rating: number | null;
+export type WidgetSpecial = {
+  id: string; kind: "flight" | "train" | "concert" | "college_football";
+  image: {src:string;alt:string}; title:string; subtitle:string; dateLabel:string;
+  booking:{label:string;url:string}; forViewerId?:string|null; originCode?:string|null; destinationCode?:string|null;
+  choices:{label:string;price:string|null}[];provider:string;retrievedAt:string;
+};
+export type Venue = { kind?:"restaurant"|"stay"|"venue"|null; imageUrl?:string|null; reviewCount?:number|null; category?:string|null; special?:WidgetSpecial|null; fit: number | null; id: string; title: string; address: string | null; rating: number | null;
   priceLevel: string | null; url: string | null; provider: string; retrievedAt: string;
   evidence: string[]; warnings: string[]; pickEligible: boolean };
 export type Planner = {
-  tripId: string; title: string; topic: PlannerTopic; timezone: string; revision: number;
+  simpleFlow?:boolean; tripId: string; title: string; topic: PlannerTopic; timezone: string; revision: number;
   approvalRevision: number; status: "collecting" | "approved" | "picked";
-  template: { title: string; topic: PlannerTopic;
+  template: { budget?:Record<string,number|null>; title: string; topic: PlannerTopic;
     when: { flexibility: Record<string, {label: string}[] | null>; agreed: {label: string; date: string | null} | null };
     where: { destination: {id: string; name: string; address: string | null; url: string | null} | null;
       destinationHint: string | null; searchArea: string | null; origins: Record<string, string> };

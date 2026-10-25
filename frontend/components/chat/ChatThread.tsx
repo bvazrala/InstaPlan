@@ -10,7 +10,7 @@ import { useTrip } from "@/lib/trip-context";
 import { Avatar, ChatAvatar } from "./Avatar";
 import { usePlanner } from "@/lib/planner-context";
 import { PlannerEntry, PublicPerspective } from "@/components/planner/PlannerEntry";
-import { PlannerApprovalCard } from "@/components/planner/PlannerPanel";
+import PlannerChatCard from "@/components/planner/PlannerChatCard";
 import TripChatCard from "@/components/trip/TripChatCard";
 import MessageBubble, { type BubblePos } from "./MessageBubble";
 import { STAGE_LABEL } from "./chat-meta";
@@ -39,6 +39,8 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
   const [quotes, setQuotes] = useState<Record<string, { who: string; text: string }>>({});
   const [reacted, setReacted] = useState<Record<string, boolean>>({});
   const endRef = useRef<HTMLDivElement>(null);
+  const resetAt=useRef<string|null>(null);
+  const visibleMessages=(items:ChatMessage[])=>resetAt.current?items.filter(message=>message.sentAt>=resetAt.current!):items;
 
   const messages: Message[] = stored.map((message) => ({ id: message.id, from: message.from === publicMe ? "me" : message.from, kind: "text", text: message.text }));
   const seps: Record<number, string> = stored.length ? { 0: new Date(stored[0].sentAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) } : {};
@@ -52,8 +54,8 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
       try {
         const list = await apiFetch<ChatMessage[]>(`/chats/${chat.id}/messages`);
         if (cancelled) return;
-        setStored((current) => mergeMessages(current, list));
-        if (list.length) onLatest(chat.id, list.at(-1)!);
+        setStored((current) => mergeMessages(current, visibleMessages(list)));
+        if (visibleMessages(list).length) onLatest(chat.id, visibleMessages(list).at(-1)!);
         setError(null);
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Could not load messages");
@@ -63,12 +65,16 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
       try {
         connection = await connectChat(chat.id, (event) => {
           if (cancelled) return;
+          if(event.type==='chat.reset'){
+            window.dispatchEvent(new CustomEvent('instaplan:chat-reset',{detail:{chatId:event.chatId,resetAt:event.resetAt}}));
+            return;
+          }
           if (event.type === "planner.updated" || event.type === "options.ready" || event.type === "trip.stage" || event.type === "fact.updated") {
             window.dispatchEvent(new Event("instaplan:trip"));
           }
           if (event.type !== "message.new") return;
-          setStored((current) => mergeMessages(current, [event.message]));
-          onLatest(chat.id, event.message);
+          setStored((current) => mergeMessages(current, visibleMessages([event.message])));
+          if(!resetAt.current||event.message.sentAt>=resetAt.current)onLatest(chat.id, event.message);
         }, () => {
           if (!cancelled) retry = setTimeout(() => void subscribe(), 1500);
         });
@@ -78,9 +84,17 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
         if (!cancelled) retry = setTimeout(() => void subscribe(), 1500);
       }
     };
+    const onReset=(event:Event)=>{
+      const detail=(event as CustomEvent<{chatId:string;resetAt:string}>).detail;
+      if(detail.chatId!==chat.id)return;
+      resetAt.current=detail.resetAt;
+      setStored([]);setDraft('');setReplyTo(null);setQuotes({});setReacted({});
+      void refresh();
+    };
+    window.addEventListener('instaplan:chat-reset',onReset);
     void refresh();
     void subscribe();
-    return () => { cancelled = true; if (retry) clearTimeout(retry); connection?.close(); };
+    return () => { cancelled = true; window.removeEventListener('instaplan:chat-reset',onReset); if (retry) clearTimeout(retry); connection?.close(); };
   }, [chat.id, onLatest]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [chat.id, stored.length, stage]);
@@ -90,8 +104,8 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
     if (!t) return;
     try {
       const message = await apiFetch<ChatMessage>(`/chats/${chat.id}/messages`, { method: "POST", body: JSON.stringify({ text: t, ...(plannerState?.demoMode ? {demoSpeakerId: publicMe} : {}) }) });
-      setStored((current) => mergeMessages(current, [message]));
-      onLatest(chat.id, message);
+      setStored((current) => mergeMessages(current, visibleMessages([message])));
+      if(!resetAt.current||message.sentAt>=resetAt.current)onLatest(chat.id, message);
       if (replyTo) setQuotes((q) => ({ ...q, [message.id]: { who: replyTo.who, text: replyTo.text } }));
       setReplyTo(null);
       setDraft("");
@@ -161,7 +175,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
                 </div>
               );
             })}
-            {chat.group && (plannerState ? plannerState.planner && <div className="my-3 max-w-md rounded-xl border border-line p-4"><p className="text-xs text-brand">{plannerState.planner.topic} planner</p><p className="font-semibold">{plannerState.planner.title}</p><p className="mt-1 text-xs text-muted">{plannerState.planner.status === 'picked' ? 'Plan selected' : plannerState.planner.status === 'approved' ? 'Initial plan approved' : plannerState.planner.listening === 'idle' ? 'The conversation builds your plan' : 'Listening to the conversation…'}</p><button className="mt-2 text-sm font-semibold text-brand" onClick={()=>setPanelOpen(true)}>Open planner</button><PlannerApprovalCard/></div> : <TripChatCard />)}
+            {chat.group && (plannerState ? <PlannerChatCard/> : <TripChatCard/>)}
             {lastMine && <p className="pr-1 pt-1.5 text-right text-[11px] text-muted">Seen</p>}
         </div>
         <div ref={endRef} />

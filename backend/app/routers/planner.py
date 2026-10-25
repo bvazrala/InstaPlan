@@ -12,7 +12,7 @@ from app.models import (Trip, PlannerSession, PlannerApproval, ListeningBatch, O
 from app.privacy.access import require_chat_member, require_trip_member, member_ids
 from app.realtime import hub
 from app.schemas import (PlannerCreate, PlannerEdit, PlannerVote, PlannerOut, PlacesQuery,
-                         PlaceSelection, GenerateIn, PickIn)
+                         PlaceSelection, GenerateIn, PickIn, PlannerResponse, DemoResetOut)
 from app.routers.options import _background
 
 router = APIRouter(tags=['planner'])
@@ -224,3 +224,33 @@ async def pick(trip_id:str,body:PickIn,user:CurrentUser=Depends(get_current_user
         service.save(session,planner,status='picked')
     session.commit()
     return await changed(session,planner)
+
+
+@router.post('/trips/{trip_id}/planner/respond',response_model=PlannerOut)
+async def respond(trip_id:str,body:PlannerResponse,background:BackgroundTasks,user:CurrentUser=Depends(get_current_user),session:Session=Depends(get_session)):
+    trip,planner=plan(session,trip_id,user)
+    from app.logic.demo_flow import respond as record_response
+    actor=service.speaker(session,trip.chat_id,user,body.demo_speaker_id)
+    record_response(session,trip,planner,actor,body.going,body.revision)
+    if planner.status=='approved':
+        schedule(session,trip,planner,background)
+    return await changed(session,planner)
+
+
+@router.post('/chats/{chat_id}/planner/places')
+def creation_places(chat_id:str,body:PlacesQuery,user:CurrentUser=Depends(get_current_user),session:Session=Depends(get_session)):
+    require_chat_member(session,chat_id,user)
+    from app.integrations.places import autocomplete,PlacesUnavailable
+    try:
+        return autocomplete(body.query,body.session_token)
+    except PlacesUnavailable as exc:
+        raise HTTPException(503,str(exc)) from None
+
+
+@router.post('/chats/{chat_id}/demo/reset',response_model=DemoResetOut)
+async def reset(chat_id:str,user:CurrentUser=Depends(get_current_user),session:Session=Depends(get_session)):
+    require_chat_member(session,chat_id,user)
+    from app.logic.demo_flow import reset_demo
+    cutoff=reset_demo(session,chat_id,user)
+    await hub.to_chat(chat_id,{'type':'chat.reset','chatId':chat_id,'resetAt':cutoff.isoformat()})
+    return DemoResetOut(reset_at=cutoff)

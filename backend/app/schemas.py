@@ -2,6 +2,7 @@
 A field only reaches the browser if it is declared here, so review this file for leaks."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -14,6 +15,7 @@ class ApiModel(BaseModel):
 # ── Group-visible ─────────────────────────────────────────────────────────────
 
 class MemberOut(ApiModel):
+    avatar_url: str | None = None
     id: str
     name: str
     handle: str
@@ -83,7 +85,39 @@ class TravelLeg(ApiModel):
     subtotal: float | None = None
 
 
+class WidgetImage(ApiModel):
+    src: str
+    alt: str
+
+
+class WidgetAction(ApiModel):
+    label: str
+    url: str
+
+
+class WidgetChoice(ApiModel):
+    label: str
+    price: str | None = None
+
+
+class WidgetSpecial(ApiModel):
+    id: str
+    kind: Literal["flight", "train", "concert", "college_football"]
+    image: WidgetImage
+    title: str
+    subtitle: str
+    date_label: str
+    booking: WidgetAction
+    for_viewer_id: str | None = None
+    origin_code: str | None = None
+    destination_code: str | None = None
+    choices: list[WidgetChoice] = []
+    provider: str
+    retrieved_at: datetime
+
+
 class OptionOut(ApiModel):
+    recommendation_rank: int | None = None
     """Group-safe option. No burden ratio and no ceilings: only the fairest rank leaves the server."""
     id: str
     title: str
@@ -112,6 +146,10 @@ class OptionOut(ApiModel):
     capacity_ack_required: bool = False
     warnings: list[str] = []
     cost_scope: str = "flights_and_lodging"
+    image_url: str | None = None
+    lodging_rating: float | None = None
+    lodging_review_count: int | None = None
+    lodging_amenities: list[str] = []
 
 
 from app.logic.planning import PlanningInput
@@ -183,6 +221,9 @@ class BudgetSuggestionOut(ApiModel):
 from typing import Any, Literal
 
 class PlannerCreate(ApiModel):
+    flow: Literal["conversation", "legacy"] = "conversation"
+    place_id: str | None = Field(default=None,max_length=300)
+    session_token: str | None = Field(default=None,min_length=16,max_length=80)
     title: str = Field(min_length=1, max_length=120)
     topic: Literal["Dining", "Travel", "Entertainment"]
     location: str = Field(default="", max_length=200)
@@ -210,6 +251,7 @@ class PlannerWhere(ApiModel):
     origins: dict[str, str] = {}
 
 class PlannerTemplate(ApiModel):
+    budget: dict[str, float | None] = {}  # explicitly volunteered in the public conversation only
     title: str
     topic: Literal["Dining", "Travel", "Entertainment"]
     when: PlannerTime
@@ -233,6 +275,12 @@ class PlannerPoll(ApiModel):
     ready: bool
 
 class VenueOut(ApiModel):
+    recommendation_rank: int | None = None
+    kind: Literal["restaurant", "stay", "venue"] | None = None
+    image_url: str | None = None
+    review_count: int | None = None
+    category: str | None = None
+    special: WidgetSpecial | None = None
     fit: float | None = None
     id: str
     title: str
@@ -272,6 +320,7 @@ class PlannerOut(ApiModel):
     provenance: dict[str, str | None] = {}  # source message id to public speaker id
     picked_id: str | None = None
     priced_members: list[str] = []
+    simple_flow: bool = False
 
 class PlacesQuery(ApiModel):
     query: str = Field(min_length=2, max_length=160)
@@ -281,3 +330,22 @@ class PlaceSelection(ApiModel):
     place_id: str = Field(min_length=1, max_length=300)
     session_token: str = Field(min_length=16, max_length=80)
     revision: int
+
+
+class ViewerWidgetIn(ApiModel):
+    option_id: str
+    location_granted: bool = False
+
+
+class ViewerWidgetOut(ApiModel):
+    special: WidgetSpecial | None = None
+
+
+class PlannerResponse(ApiModel):
+    revision: int
+    going: bool
+    demo_speaker_id: str | None = None
+
+
+class DemoResetOut(ApiModel):
+    reset_at: datetime

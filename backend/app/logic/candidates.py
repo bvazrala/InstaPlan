@@ -170,6 +170,9 @@ class TripCandidate:
     lodging_priced_at: datetime | None = None
     lodging_amenities: tuple[str, ...] = ()
     listing_url: str | None = None
+    lodging_image_url: str | None = None
+    lodging_rating: float | None = None
+    lodging_review_count: int | None = None
 
     @property
     def capacity_unverified(self) -> bool:
@@ -309,6 +312,8 @@ class TripCandidate:
             lodging_priced_at=property_.retrieved_at,
             lodging_amenities=tuple(property_.amenities),
             listing_url=property_.booking_link,
+            lodging_image_url=property_.image_url, lodging_rating=property_.overall_rating,
+            lodging_review_count=property_.review_count,
         )
 
 

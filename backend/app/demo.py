@@ -8,7 +8,7 @@ DEMO_TRIP_ID = "local-demo-trip"
 def seed_local_demo(database_engine):
     from sqlmodel import Session, select
     from app.config import get_settings
-    from app.models import Chat, ChatMember, Message, User
+    from app.models import Chat, ChatMember, Message, User, PublicProfile
     settings = get_settings()
     if not settings.demo_mode or settings.app_env != "dev" or database_engine.dialect.name != "sqlite":
         raise RuntimeError("Local demo bootstrap requires development mode and SQLite")
@@ -20,6 +20,8 @@ def seed_local_demo(database_engine):
         for uid, name, handle, airport, hue in people:
             if session.get(User, uid) is None:
                 session.add(User(id=uid, display_name=name, handle=handle, home_airport=airport, hue=hue))
+            if session.get(PublicProfile,uid) is None:
+                session.add(PublicProfile(user_id=uid,avatar_url=f'/planner/people/{handle}.svg'))
         session.commit()
         if session.get(Chat, DEMO_CHAT_ID) is None:
             session.add(Chat(id=DEMO_CHAT_ID, name="Weekend crew (local demo)"))

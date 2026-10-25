@@ -129,3 +129,34 @@ def test_demo_public_perspective_cannot_select_private_identity(demo_client):
         assert session.get(PrivatePrefs,(planner['tripId'],'demo-maya')) is None
     outsider=demo_client.post(f'/chats/{DEMO_CHAT_ID}/messages',headers=headers,json={'text':'Hello','demoSpeakerId':'outsider'})
     assert outsider.status_code==403
+
+
+def test_demo_reset_clears_visible_conversation_and_invalidates_work_without_erasing_history(demo_client):
+    from app.models import PlannerSession,ListeningBatch,OptionGeneration,DemoChatState
+    from app.logic.planner_service import listener_context
+    headers={'Authorization':f'Bearer {DEMO_TOKEN}'}
+    p=demo_client.post(f'/chats/{DEMO_CHAT_ID}/planners',headers=headers,json={'title':'Old dinner','topic':'Dining','location':'Austin'}).json()
+    demo_client.post(f'/chats/{DEMO_CHAT_ID}/messages',headers=headers,json={'text':'OLD-CONTEXT-MARKER'})
+    with Session(engine) as session:
+        before=len(session.exec(select(Message)).all())
+        session.add(OptionGeneration(trip_id=p['tripId'],run_id='old-worker',status='generating'))
+        session.add(PrivatePrefs(trip_id=p['tripId'],user_id=DEMO_USER_ID,data_encrypted=encrypt_json({'budget_cap':333})))
+        session.commit()
+    reset=demo_client.post(f'/chats/{DEMO_CHAT_ID}/demo/reset',headers=headers)
+    assert reset.status_code==200,reset.text
+    assert demo_client.get(f'/chats/{DEMO_CHAT_ID}/messages',headers=headers).json()==[]
+    assert demo_client.get(f'/chats/{DEMO_CHAT_ID}/planner',headers=headers).json() is None
+    assert demo_client.get(f"/trips/{p['tripId']}/planner",headers=headers).status_code==404
+    with Session(engine) as session:
+        assert len(session.exec(select(Message)).all())==before
+        assert session.get(PrivatePrefs,(p['tripId'],DEMO_USER_ID)) is not None
+        assert session.get(OptionGeneration,p['tripId']).run_id!='old-worker'
+        assert session.get(PlannerSession,p['tripId']).status=='archived'
+    fresh=demo_client.post(f'/chats/{DEMO_CHAT_ID}/planners',headers=headers,json={'title':'Fresh dinner','topic':'Dining','location':'Austin'}).json()
+    demo_client.post(f'/chats/{DEMO_CHAT_ID}/messages',headers=headers,json={'text':'NEW-CONTEXT-MARKER'})
+    with Session(engine) as session:
+        planner=session.get(PlannerSession,fresh['tripId'])
+        batch=session.exec(select(ListeningBatch).where(ListeningBatch.trip_id==planner.trip_id)).first()
+        ctx,_=listener_context(session,planner,batch)
+        assert 'OLD-CONTEXT-MARKER' not in ctx.model_dump_json()
+        assert 'NEW-CONTEXT-MARKER' in ctx.model_dump_json()

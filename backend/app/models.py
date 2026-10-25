@@ -177,3 +177,20 @@ class VenueRecommendation(SQLModel, table=True):
     trip_id: str = Field(foreign_key="trip.id", index=True)
     revision: int
     data: dict[str, Any] = Field(sa_column=Column(JSON))
+
+class WidgetItinerary(SQLModel, table=True):
+    """Provider evidence for an owner's optional flight widget. Never serialized in shared options."""
+    option_id: str = Field(primary_key=True)
+    user_id: str = Field(foreign_key="user.id",primary_key=True)
+    trip_id: str = Field(foreign_key="trip.id",index=True)
+    data: dict[str, Any] = Field(sa_column=Column(JSON))
+
+
+class DemoChatState(SQLModel, table=True):
+    chat_id: str = Field(foreign_key="chat.id",primary_key=True)
+    reset_at: datetime = Field(default_factory=_now)
+
+
+class PublicProfile(SQLModel, table=True):
+    user_id: str = Field(foreign_key="user.id",primary_key=True)
+    avatar_url: str

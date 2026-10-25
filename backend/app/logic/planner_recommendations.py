@@ -10,12 +10,30 @@ from app.logic.planning import PlanningInput, Constraint, Preference
 from app.schemas import VenueOut, PrivatePrefsData
 from app.privacy.crypto import decrypt_json
 from app.integrations.serpapi_client import SerpApiClient
-from app.integrations.serpapi_normalized import Place
+from app.integrations.serpapi_normalized import Place, _parse_created_at
+from app.logic.widget_evidence import public_url, requested_special, event_for_venue
 
 
 def travel_inputs(planner):
     raw = planner.internal.get('pricing',{})
     inputs = PlanningInput.model_validate(raw)
+    if planner.internal.get('simple_flow') and not raw:
+        import re
+        from datetime import date
+        from app.logic.planning import Destination
+        inputs.origins={uid:code for uid,code in planner.template['where']['origins'].items()
+                        if uid in planner.approved_members and re.fullmatch(r'[A-Z]{3}',code)}
+        location=planner.template['where']['search_area'] or ''
+        if re.fullmatch(r'[A-Z]{3}',location):
+            inputs.destinations=[Destination(name=location,airports=[location])]
+        labels=[str((planner.template['when'].get('agreed') or {}).get('label',''))]
+        labels += [window['label'] for windows in planner.template['when']['flexibility'].values() if windows for window in windows]
+        for label in labels:
+            dates=list(dict.fromkeys(re.findall(r'\b\d{4}-\d{2}-\d{2}\b',label)))
+            if len(dates)==2:
+                try: inputs.checkin,inputs.checkout=map(date.fromisoformat,dates)
+                except ValueError: pass
+                break
     # Public natural-language hard requirements remain unverified rather than disappearing.
     import re
     inputs.constraints = []
@@ -44,9 +62,17 @@ def travel_inputs(planner):
     return inputs
 
 
+def place_fallback(planner):
+    return bool(planner and planner.topic=='Travel' and planner.internal.get('simple_flow') and (
+        planner.template['cluster'].get('trip_type')!='flight' or
+        travel_inputs(planner).missing(planner.approved_members)))
+
+
 def venue_constraints_verified(session, planner):
     if any(values for uid,values in planner.template['hard_constraints'].items() if uid in planner.approved_members):
         return False
+    if planner.internal.get('simple_flow'):
+        return True
     for row in session.exec(select(PrivatePrefs).where(PrivatePrefs.trip_id == planner.trip_id)):
         if row.user_id not in planner.approved_members:
             continue
@@ -70,8 +96,13 @@ def generate_venues(session, trip, planner, run_id, client=None):
     selected = template['where']['destination']
     exact = selected if selected and selected.get('kind','venue') == 'venue' else None
     location = selected['name'] if selected else template['where']['search_area'] or template.get('base_location')
+    if not location:
+        finish_state(session, trip.id, run_id, 'needs_input', {'message':'Choose a city or place before searching.', 'missing':['location']})
+        return False
     cluster = template['cluster']
     query = (' '.join(cluster.get('cuisine',[]))+' restaurants '+str(cluster.get('meal_type',''))) if planner.topic == 'Dining' else cluster.get('activity_type','things to do')
+    if planner.topic=='Travel':
+        query = 'hotels and stays'
     public_preferences = {uid:template['preferences'].get(uid,[]) for uid in planner.approved_members}
     terms = list(dict.fromkeys(value for values in public_preferences.values() for value in values))[:4]
     if terms:
@@ -85,6 +116,18 @@ def generate_venues(session, trip, planner, run_id, client=None):
     rows = [payload['place_results']] if exact and isinstance(payload.get('place_results'),dict) else payload.get('local_results',[]) if not exact else []
     if not isinstance(rows,list):
         raise ValueError('malformed venues')
+    retrieved_at = _parse_created_at(payload) or datetime.now(UTC)
+    event_rows = []
+    event_time = retrieved_at
+    event_kind = requested_special(cluster.get('activity_type')) if planner.topic=='Entertainment' else None
+    if event_kind:
+        try:
+            target = ' '.join(filter(None,[exact['name'],exact.get('address')])) if exact else location
+            event_payload = client.search({'engine':'google_events','q':f"{cluster.get('activity_type')} {target}",'hl':'en'})
+            event_rows = event_payload.get('events_results',[])
+            event_time = _parse_created_at(event_payload) or datetime.now(UTC)
+        except Exception:
+            pass  # The venue remains useful when the optional ticket feed is unavailable.
     session.expire_all()
     trip = session.exec(select(Trip).where(Trip.id == trip.id).with_for_update()).one()
     planner = session.get(PlannerSession,trip.id)
@@ -122,19 +165,23 @@ def generate_venues(session, trip, planner, run_id, client=None):
                     'Dietary and accessibility suitability must be confirmed with the venue.']
         if not verified:
             warnings.append('Requirements still need verification before this venue can be picked.')
-        venues[identity] = VenueOut(id=venue_id,title=place.title,address=place.address,rating=place.rating,
-            price_level=place.price_level,url=url,retrieved_at=datetime.now(UTC),evidence=evidence,
+        venues[identity] = VenueOut(kind="restaurant" if planner.topic=="Dining" else "stay" if planner.topic=="Travel" else "venue",id=venue_id,title=place.title,address=place.address,rating=place.rating,
+            price_level=place.price_level,url=url,retrieved_at=retrieved_at,evidence=evidence,
+            image_url=public_url(place.image_url),review_count=place.review_count,category=place.category,
+            special=event_for_venue(event_rows,place.title,event_kind,retrieved_at=event_time,venue_address=place.address,
+                exact_date=(template['when'].get('agreed') or {}).get('date')),
             warnings=warnings,pick_eligible=verified,fit=fit)
-    results = sorted(venues.values(),key=lambda v:(v.fit is None,-(v.fit or 0),v.rating is None,-(v.rating or 0),v.id))[:6]
+    results = sorted(venues.values(),key=lambda v:(not bool(v.special),v.fit is None,-(v.fit or 0),v.rating is None,-(v.rating or 0),v.id))[:6]
     changed = session.execute(update(OptionGeneration).where(OptionGeneration.trip_id==trip.id,
         OptionGeneration.run_id==run_id,OptionGeneration.status.in_(['resolving','generating'])).values(
         status='ready',published_revision=run.revision,updated_at=utcnow(),result={
-        'planner_revision':planner.approval_revision,'option_count':len(results)}))
+        'planner_revision':planner.approval_revision,'option_count':len(results),'recommendation_kind':'venues'}))
     if changed.rowcount != 1:
         session.rollback()
         return False
     session.exec(delete(VenueRecommendation).where(VenueRecommendation.trip_id==trip.id))
-    for venue in results:
+    for rank,venue in enumerate(results,1):
+        venue.recommendation_rank=rank
         session.add(VenueRecommendation(id=venue.id,trip_id=trip.id,revision=planner.approval_revision,
                                         data=venue.model_dump(mode='json')))
     trip.stage='options'

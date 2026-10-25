@@ -6,17 +6,19 @@ InstaPlan is a group-chat trip planner. Read `README.md` first; `docs/api-contra
 
 Friends must never see each other's private information, and no group-chat AI request may carry it.
 
-- Never send budgets, bank data, private check-in answers or a `PrivateContext` to `backend/app/integrations/muse_group.py`. Its functions take a `GroupContext` only.
+- Never send private budgets, bank data, private check-in answers or a `PrivateContext` to `backend/app/integrations/muse_group.py`. Its functions take a `GroupContext` only.
 - Private check-ins go through `integrations/muse_private.py`, one member per request. Never put another member's data in it.
 - Use a Standard Muse model (`muse-spark-1.3`). Never a `-contributor` model: those may train on prompts.
 - Private data lives in `PrivatePrefs` and `PrivateMessage`, encrypted with `app/privacy/crypto.py`. Only `/trips/{id}/me/` routes, `integrations/muse_private.py` and `app/logic/` may read it.
 - Never add a route that takes a user id and returns private data. Private routes act on the logged-in user.
 - Every route calls `require_trip_member` or `require_chat_member` (`app/privacy/access.py`).
-- Never add burden ratios, ceilings or budgets to `schemas.OptionOut` or any group response.
+- Never add private burden ratios, ceilings or private budgets to `schemas.OptionOut` or any group response.
 - Send private events through `hub.to_user` with a `private.*` type; never `hub.to_chat`.
 - Never log private values. Never put API keys in `frontend/` or in any `NEXT_PUBLIC_` variable.
 - Budget math stays in plain Python (`app/logic/`), not in a model prompt.
 - Never disable the row-level-security lockdown in `app/db.py`, and never point `TEST_DATABASE_URL` at Supabase (tests drop all tables).
+
+The conversation-only hackathon demo now has an explicitly public `PlannerTemplate.budget`, populated only from the source speaker's volunteered public chat text or a clearly labeled public edit. This user-requested demo field may enter `GroupContext`; it must never be populated from encrypted `PrivatePrefs`, bank data, historical check-ins, or another member's inferred spending. New conversation planners do not read private preferences or offer check-ins. Keep historical private APIs and encrypted records owner-only. Budget arithmetic remains plain Python.
 
 ## Where things go
 

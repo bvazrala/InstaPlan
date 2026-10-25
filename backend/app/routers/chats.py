@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.auth import CurrentUser, get_current_user
 from app.db import get_session
-from app.models import Chat, ChatMember, Message, User
+from app.models import Chat, ChatMember, Message, User, DemoChatState, PublicProfile
 from app.pipeline import on_group_message
 from app.privacy.access import member_ids, require_chat_member
 from app.realtime import hub
@@ -23,6 +23,7 @@ def message_out(m: Message) -> MessageOut:
 async def post_group_message(session: Session, chat_id: str, user: CurrentUser, text: str, demo_speaker_id: str | None = None) -> MessageOut:
     """Shared by REST and WebSocket sends: store, broadcast, then run the pipeline in the background."""
     from app.logic.planner_service import active, speaker, enqueue
+    session.exec(select(Chat).where(Chat.id==chat_id).with_for_update()).one()
     actor = speaker(session, chat_id, user, demo_speaker_id)
     msg = Message(chat_id=chat_id, sender_id=actor, body=text)
     session.add(msg)
@@ -51,13 +52,18 @@ def my_chats(user: CurrentUser = Depends(get_current_user), session: Session = D
 def chat_members(chat_id: str, user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)):
     require_chat_member(session, chat_id, user)
     users = session.exec(select(User).where(User.id.in_(member_ids(session, chat_id)))).all()  # type: ignore[attr-defined]
-    return [MemberOut(id=u.id, name=u.display_name, handle=u.handle, hue=u.hue, origin=u.home_airport) for u in users]
+    profiles={profile.user_id:profile.avatar_url for profile in session.exec(select(PublicProfile).where(PublicProfile.user_id.in_([u.id for u in users])))}
+    return [MemberOut(id=u.id, name=u.display_name, handle=u.handle, hue=u.hue, origin=u.home_airport,avatar_url=profiles.get(u.id)) for u in users]
 
 
 @router.get("/chats/{chat_id}/messages", response_model=list[MessageOut])
 def chat_messages(chat_id: str, user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)):
     require_chat_member(session, chat_id, user)
     msgs = session.exec(select(Message).where(Message.chat_id == chat_id).order_by(Message.sent_at)).all()  # type: ignore[arg-type]
+    from datetime import UTC
+    reset=session.get(DemoChatState,chat_id)
+    if reset:
+        msgs=[m for m in msgs if m.sent_at.replace(tzinfo=UTC)>=reset.reset_at.replace(tzinfo=UTC)]
     return [message_out(m) for m in msgs]
 
 

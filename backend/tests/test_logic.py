@@ -398,3 +398,51 @@ def test_public_planner_semantics_ignore_speaking_and_provenance_only_changes():
     assert semantic_signature(template)==semantic_signature(changed)
     changed['attendance']['alice']={'status':'going','condition':None}
     assert semantic_signature(template)!=semantic_signature(changed)
+
+
+def test_widgets_require_matching_event_evidence_and_never_make_up_tickets():
+    from app.logic.widget_evidence import event_for_venue, public_url
+    stamp=datetime(2026,10,25,tzinfo=UTC)
+    event={'title':'Artist live in Austin','venue':{'name':'Moody Center'},'date':{'when':'Saturday, November 7'},
+           'image':'https://images.example/concert.jpg','ticket_info':[{'link':'https://tickets.example/event'}]}
+    assert event_for_venue([event],'Another venue','concert',retrieved_at=stamp) is None
+    special=event_for_venue([event],'Moody Center','concert',retrieved_at=stamp)
+    assert special and special.kind=='concert' and special.choices==[]
+    assert event_for_venue([event],'Moody Center','concert',retrieved_at=stamp,exact_date='2026-11-07') is None
+    assert event_for_venue([event],'Moody Center','college_football',retrieved_at=stamp) is None
+    event['title']='Texas college football vs Oklahoma'
+    assert event_for_venue([event],'Moody Center','college_football',retrieved_at=stamp)
+    assert event_for_venue([event],'Moody Center','college_football',retrieved_at=stamp,venue_address='1401 Trinity Street, Austin, TX') is None
+    event['ticket_info']=[]
+    assert event_for_venue([event],'Moody Center','concert',retrieved_at=stamp) is None
+    assert public_url('https://site.example/photo?api_key=secret') is None
+    assert public_url('https://user:secret@site.example/photo') is None
+
+
+def test_widget_provider_images_and_reviews_survive_normalization(group_trip):
+    from app.integrations.serpapi_normalized import Place, Property
+    place=Place.from_dict({'title':'Cafe','thumbnail':'https://images.example/cafe.jpg','reviews':42})
+    assert place.image_url=='https://images.example/cafe.jpg' and place.review_count==42
+    property=Property.from_dict({'name':'Stay','images':[{'original_image':'https://images.example/stay.jpg'}]})
+    assert property.image_url=='https://images.example/stay.jpg'
+    group_trip[2].image_url=property.image_url
+    group_trip[2].overall_rating=4.6
+    group_trip[2].review_count=42
+    candidate,=_group(group_trip)
+    assert candidate.lodging_image_url==property.image_url and candidate.lodging_review_count==42
+
+
+def test_public_conversation_template_accepts_only_speakers_volunteered_budget():
+    from app.logic.listening import new_template,safe_updates,listener_text
+    template=new_template('Dinner','Dining',members=('alice','bob'));template['budget']={}
+    message={'id':'m','user_id':'alice','text':'My budget is $250'}
+    updates=[{'field':'budget','value':250,'user_id':'alice','source_message_id':'m'},
+             {'field':'budget','value':800,'user_id':'bob','source_message_id':'m'}]
+    result,_=safe_updates(template,updates,[message])
+    assert result['budget']=={'alice':250}
+    invented,_=safe_updates(template,[{**updates[0],'value':999}],[message])
+    assert invented['budget']=={}
+    assert listener_text(message['text'],public_budget=True)==message['text']
+    euro,_=safe_updates(template,[updates[0]],[{**message,'text':'My budget is EUR 250'}])
+    assert euro['budget']=={}
+    assert '887766' not in listener_text('My bank account is 887766 and my budget is 250',public_budget=True)

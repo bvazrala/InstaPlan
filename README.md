@@ -1,6 +1,6 @@
 # InstaPlan
 
-**A group planner that lives inside the chat.** Start Dining, Travel, or Entertainment plans, collect public preferences as friends talk, approve the initial criteria, and choose a real recommendation. Private check-ins stay owner-only; travel budgets influence group options without revealing anyone's answers.
+**A group planner that lives inside the chat.** Start a Dining, Travel, or Entertainment plan from **+ Planner**, optionally pick a city or exact place from Google Maps, and let the conversation build the template. Friends respond with “Yes, I’m going” or “Not coming”; enough confirmations trigger one sourced recommendation widget. The hackathon demo has no private check-in step. Only voluntarily public spending limits enter its template; historical encrypted private records stay protected.
 
 Built at HackTX 2026 for the Meta, SerpApi and Capital One tracks, with a .tech domain from MLH.
 
@@ -32,12 +32,11 @@ InstaPlan does two things existing planners don't:
 
 ## How it works
 
-1. **Start a planner.** Choose **+ → Planner**, add a title and topic, and optionally name a city or search area.
-2. **Listen and correct.** Conversation fills the public template. Members can correct availability, attendance, preferences, and topic details. Inferred attendance and Suggested values are labeled.
-3. **Approve the initial plan.** Once required information is supplied and listening finishes, everyone who has not declined can vote. Approval thresholds are 40%, 50%, or 60%; approval votes are separate from attendance.
-4. **Keep private needs private.** Your own private check-in saves encrypted budget and requirements. The demo's public speaker switcher cannot change your private identity.
-5. **Get recommendations.** Dining and Entertainment use venue results with honest unknown costs and availability. Travel confirms exact dates and airports, then prices flights and shared lodging for going members only, with exact individual subtotals and private fairness ranking.
-6. **Select or revise.** Selection is persisted on the backend. **Revise plan** reopens listening and requires fresh approval before replacing recommendations. Existing expense and settlement features remain outside this unified planning phase.
+1. **Start.** Choose **+ → Planner**, enter a title, optionally choose a Google Maps city/exact venue, then pick Dining, Travel or Entertainment.
+2. **Converse.** The listener fills public attendance, agreed timing, availability, destination/search area, optional origins, volunteered spending limits, preferences, hard constraints and the active topic's optional fields.
+3. **Respond.** A compact plan-and-poll card appears automatically when the required template is ready. Profile pictures show confirmations and declines; conditional attendance stays in the background. Responses are **Yes, I’m going** and **Not coming**. Explicit conversational declines are honored.
+4. **Get one recommendation.** Enough confirmations freeze the plan and trigger bounded provider searches. One recommended choice appears with the supplied formation animation. Sourced flight, concert and college-football cards can have a second place/stay fallback slide. Train or unsupported/incomplete travel data uses the real place/stay fallback; no rail fare is fabricated.
+5. **Reset the demo.** **Reset demo** clears the visible conversation and active planner, cancels obsolete work and lets the crew start again. Historical records and encrypted data are retained. The four-person public speaker switcher does not change the authenticated viewer of personalized flight data.
 
 ## Tech stack
 
@@ -264,3 +263,8 @@ Conversation updates a persisted public template. Members can correct attendance
 The normal application contains useful listening and recovery states. Raw model traces and diagnostics remain in `backend/scripts/listening_lab`, which is not imported by production code. Planner sessions, revision-scoped approvals, durable listening batches and venue results are created through the existing startup table/RLS mechanism. Existing trip history is preserved.
 
 Optional Places picking uses server-only `GOOGLE_MAPS_API_KEY`; missing provider keys show unavailable states. Tests mock providers and do not need keys or make paid requests. See `docs/api-contract.md` for the unified API and privacy boundary.
+
+
+The planner now opens with a readable public summary; **Edit details** reveals corrections when needed. Approval leaves a persistent **Plan confirmed** card in the chat, followed by a widget adapted from the supplied design handoff. Venue and stay photos/reviews come from provider results, not gallery samples. Concert/college-football slides use matching SerpApi event listings; an optional owner-only flight action requires a confirmed origin, explicit permission and a safe provider booking URL. Missing evidence keeps the common place/stay card. The train presentation is available but no live train provider is configured.
+
+Conversation planners open the in-chat RSVP poll as soon as at least half the current chat members have spoken since planner creation (rounded up). Incomplete availability and queued listening do not hide or block the poll. Silent members await a response; conversational declines can be changed with Yes. The approval threshold still controls recommendation generation: participation alone is not approval. Unresolved timing and location remain explicit.

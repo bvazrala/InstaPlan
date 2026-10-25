@@ -82,7 +82,7 @@ def generate_options(session: Session, trip: Trip, *, run_id: str | None = None,
     from app.models import OptionGeneration, TripOption, TripVote
 
     from app.models import PlannerSession
-    from app.logic.planner_recommendations import travel_inputs, generate_venues
+    from app.logic.planner_recommendations import travel_inputs, generate_venues, place_fallback
     planner = session.get(PlannerSession, trip.id)
     if planner and planner.status != 'approved':
         return False
@@ -94,7 +94,7 @@ def generate_options(session: Session, trip: Trip, *, run_id: str | None = None,
     run = session.get(OptionGeneration, trip.id)
     if run is None or run.run_id != run_id:
         return False
-    if planner and planner.topic != 'Travel':
+    if planner and (planner.topic != 'Travel' or place_fallback(planner)):
         return generate_venues(session, trip, planner, run_id, client)
     if not recent(run) or trip.stage not in {"checkin", "options", "confirmed"}:
         finish_state(session, trip.id, run_id, "failed", {"message": "Trip state changed. Please retry."})
@@ -175,7 +175,11 @@ def generate_options(session: Session, trip: Trip, *, run_id: str | None = None,
             participants, by_user, properties, checkin=inputs.checkin.isoformat(), checkout=inputs.checkout.isoformat(),
             destination_city=destination.name, destination_airports=destination.airports,
         ))
-    options = evaluate_options(session, trip.id, candidates, inputs)
+    options = evaluate_options(session, trip.id, candidates, inputs,
+        include_private=not planner or not planner.internal.get('simple_flow'),
+        public_ceilings=planner.template.get('budget',{}) if planner and planner.internal.get('simple_flow') else None)
+    if planner and planner.internal.get('simple_flow') and not options:
+        return generate_venues(session,trip,planner,run_id,client)
     if partial and not options:
         finish_state(session, trip.id, run_id, "failed", {"message": "Travel prices could not be retrieved. Please retry.", "partial": True})
         return False
@@ -206,6 +210,9 @@ def generate_options(session: Session, trip: Trip, *, run_id: str | None = None,
     for option in options:
         session.add(TripOption(id=option.id, trip_id=trip.id, fairest_rank=option.fairest_rank,
                               data=option.model_dump(mode="json")))
+    if planner:
+        from app.logic.viewer_widget import publish_itineraries
+        publish_itineraries(session,trip.id,candidates,options,inputs)
     current.stage = "options"
     current.picked_option_id = None
     session.add(current)

@@ -29,9 +29,10 @@ def revision(session: Session, trip: Trip) -> str:
     facts = session.exec(select(Fact).where(Fact.trip_id == trip.id).order_by(Fact.id)).all()
     votes = session.exec(select(TripVote).where(TripVote.trip_id == trip.id).order_by(TripVote.user_id)).all()
     users = session.exec(select(User).where(User.id.in_(ids)).order_by(User.id)).all()
+    planner = session.get(PlannerSession, trip.id)
     value = {"members": ids, "origins": [(u.id, u.home_airport) for u in users],
              "facts": [f.model_dump(mode="json") for f in facts], "votes": [v.model_dump() for v in votes],
-             "private_revision": private_revision(session, trip.id)}
+             "private_revision": private_revision(session, trip.id) if not planner or not planner.internal.get("simple_flow") else None}
     planner = session.get(PlannerSession, trip.id)
     if planner:
         value['planner'] = {'approval':planner.approval_revision,'epoch':planner.epoch,

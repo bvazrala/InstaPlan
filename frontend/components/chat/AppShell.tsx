@@ -60,6 +60,15 @@ function Shell() {
     return () => { cancelled = true; };
   }, [router, setActiveChat]);
 
+  useEffect(()=>{
+    const onReset=(event:Event)=>{
+      const id=(event as CustomEvent<{chatId:string}>).detail.chatId;
+      setLastMessages(current=>{const next={...current};delete next[id];return next;});
+    };
+    window.addEventListener('instaplan:chat-reset',onReset);
+    return()=>window.removeEventListener('instaplan:chat-reset',onReset);
+  },[]);
+
   const unreadIds: string[] = [];
   const open = (id: string) => {
     setChatId(id);
@@ -89,7 +98,7 @@ function Shell() {
         {chat && <ChatThread key={chat.id} chat={chat} me={me} members={members} onLatest={onLatest} onBack={() => setMobileView("list")} />}
       </main>
       <aside className={`${panelOpen && chat?.group ? "lg:block" : ""} hidden w-[400px] shrink-0 border-l border-line`}>
-        {desktop && <SidePanel />}
+        {desktop && panelOpen && <SidePanel />}
       </aside>
       {!desktop && chat?.group && <MobileSheet />}
     </div>

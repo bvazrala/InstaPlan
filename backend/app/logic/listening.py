@@ -104,6 +104,13 @@ def missing_fields(template: dict) -> list[str]:
     return missing  # topic (cluster) fields are all optional
 
 
+def conversation_poll_ready(template: dict) -> bool:
+    """Open the proposal after half the actual members speak; extraction never blocks it."""
+    from math import ceil
+    members = set(template['members'])
+    return bool(members) and len(set(template.get('spoke', [])) & members) >= ceil(len(members) / 2)
+
+
 def _dedupe_windows(value: list[dict] | None) -> list[dict] | None:
     """Keep each distinct window once (case-insensitive), in the order given."""
     if value is None:
@@ -185,7 +192,7 @@ def apply_updates(template: dict, updates: object, messages: list[dict]) -> tupl
             agreed, reason = _agreed(value)
             if reason is None:
                 result["when"]["agreed"] = agreed
-        elif field in {"when.flexibility", "preferences", "hard_constraints", "attendance"}:
+        elif field in {"when.flexibility", "preferences", "hard_constraints", "attendance", "budget"}:
             if user_id not in set(template["members"]) or user_id != source["user_id"]:
                 reason = "personal field must belong to the speaker"
             elif field == "attendance":
@@ -194,6 +201,14 @@ def apply_updates(template: dict, updates: object, messages: list[dict]) -> tupl
                     result["attendance"][user_id] = entry
                     if entry["status"] == "not_going":
                         result["when"]["flexibility"].pop(user_id, None)  # a decline replaces any earlier availability
+            elif field == "budget":
+                import math
+                if 'budget' not in template:
+                    reason = 'public budgets are not enabled for this plan'
+                elif value is not None and (isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or not 0 <= value <= 10_000_000):
+                    reason = 'budget must be a nonnegative number or null'
+                else:
+                    result['budget'][user_id] = value
             elif field == "when.flexibility":
                 if value == []:
                     reason = "an empty availability is not accepted; use attendance not_going for 'can't go'"
@@ -253,7 +268,7 @@ def semantic_signature(template: dict) -> str:
 def public_text(text: str) -> str:
     # Group listening must not extract private financial details from a public message.
     if re.search(r"[$€£]|\b(?:budget|bank|balance|income|salary|afford|spend|ceiling)\b|\b(?:under|cap)\b.*\d|\bi can do\s+\d|[-+]?\d{1,3}\.\d+\s*,\s*[-+]?\d{1,3}\.\d+", text, re.I):
-        return "[Financial details omitted. Use a private check-in.]"
+        return "[Sensitive financial or precise location details omitted.]"
     return text
 
 
@@ -267,19 +282,31 @@ def safe_updates(template: dict, updates: object, messages: list[dict], *, field
         item = dict(item)
         field = FIELD_ALIASES.get(field,field)
         item['field'] = field
-        if field not in {'attendance','when.flexibility','preferences','hard_constraints'}:
+        if field not in {'attendance','when.flexibility','preferences','hard_constraints','budget'}:
             item['user_id'] = None
         uid = item.get("user_id")
         key = f"{field}:{uid or 'group'}"
         source = item.get("source_message_id")
         if not isinstance(source,str) or uid is not None and not isinstance(uid,str):
             continue
-        if field in {"budget", "private_scores", "origin_location"}:
+        if field in {"private_scores", "origin_location"} or field == "budget" and "budget" not in template:
             continue
-        if public_text(json.dumps(item.get("value"), ensure_ascii=False)) != json.dumps(item.get("value"), ensure_ascii=False):
+        if field != "budget" and public_text(json.dumps(item.get("value"), ensure_ascii=False)) != json.dumps(item.get("value"), ensure_ascii=False):
             continue
         if field_versions.get(key, -1) > source_revisions.get(source, float("inf")):
             continue
+        if field == 'budget' and source != 'manual':
+            original = next((message.get('text','') for message in messages if message.get('id')==source),'')
+            if re.search(r'€|£|\b(?:EUR|GBP|CAD|AUD|JPY|INR)\b',original,re.I):
+                continue
+            if item.get('value') is None:
+                if not re.search(r'no (?:budget|limit|cap)|budget.*(?:flexible|unknown|undecided|clear)',original,re.I):
+                    continue
+                filtered.append(item)
+                continue
+            numbers = re.findall(r'\d+(?:\.\d+)?',original.replace(',',''))
+            if not re.search(r'budget|spend|afford|under|[$€£]|i can do',original,re.I) or not any(float(number)==item['value'] for number in numbers):
+                continue
         filtered.append(item)
     return apply_updates(template, filtered, messages)
 
@@ -325,3 +352,13 @@ def ground_timing(updates: object, messages: list[dict], today: str) -> list[dic
                 item['value'] = value
         grounded.append(item)
     return grounded
+
+
+
+def listener_text(text: str, *, public_budget=False) -> str:
+    """Only explicit public spending limits opt into the new demo; bank/account data never does."""
+    if not public_budget:
+        return public_text(text)
+    if re.search(r'\b(?:bank|balance|income|salary|account|routing|card number)\b|[-+]?\d{1,3}\.\d+\s*,\s*[-+]?\d{1,3}\.\d+',text,re.I):
+        return '[Sensitive financial or precise location details omitted.]'
+    return text

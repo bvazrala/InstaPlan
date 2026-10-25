@@ -7,7 +7,9 @@ type PlannerState = {
   planner: Planner | null; loading: boolean; busy: boolean; error: string | null;
   chatId: string; me: string; members: Record<string, Member>; demoMode: boolean;
   speaker: string; setSpeaker: (id: string) => void; creating: boolean; setCreating: (value: boolean) => void;
-  refresh: () => Promise<void>; create: (title: string, topic: PlannerTopic, location: string) => Promise<boolean>;
+  refresh: () => Promise<void>; create: (title: string, topic: PlannerTopic, location: string, place?:{placeId:string;sessionToken:string}) => Promise<boolean>;
+  reset:()=>Promise<void>;
+  respond:(going:boolean)=>Promise<boolean>;
   edit: (field: string, value: unknown) => Promise<boolean>; vote: (approve: boolean) => Promise<boolean>;
   action: (name: "revise" | "retry") => Promise<boolean>; pricing: (inputs: PlanningInputs) => Promise<boolean>;
   pick: (id: string, acknowledgeCapacity?: boolean) => Promise<boolean>;
@@ -31,12 +33,14 @@ function PlannerSessionProvider({ children, chatId = "", tripId, me = "", member
   const [speaker, setSpeaker] = useState(me);
   const [creating, setCreating] = useState(false);
   const mounted = useRef(true);
+  const epoch=useRef(0);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const refresh = useCallback(async () => {
     if (!chatId && !tripId) return;
+    const requestEpoch=epoch.current;
     try {
       const next = await apiFetch<Planner | null>(tripId ? `/trips/${tripId}/planner` : `/chats/${chatId}/planner`);
-      if (mounted.current) { setPlanner(current => current && next && current.tripId === next.tripId && current.revision > next.revision ? current : next); setLoadError(null); }
+      if (mounted.current && requestEpoch===epoch.current) { setPlanner(current => current && next && current.tripId === next.tripId && current.revision > next.revision ? current : next); setLoadError(null); }
     } catch (cause) { if (mounted.current) setLoadError(message(cause,"Could not load planner")); }
     finally { if (mounted.current) setLoading(false); }
   }, [chatId, tripId]);
@@ -48,21 +52,44 @@ function PlannerSessionProvider({ children, chatId = "", tripId, me = "", member
     window.addEventListener("online", update);
     return () => { clearTimeout(initial); clearInterval(timer); window.removeEventListener("instaplan:trip", update); window.removeEventListener("online", update); };
   }, [refresh]);
+  useEffect(()=>{
+    const resetReceived=(event:Event)=>{
+      const detail=(event as CustomEvent<{chatId:string}>).detail;
+      if(detail.chatId!==chatId)return;
+      epoch.current++;setPlanner(null);setCreating(false);setSpeaker(me);
+      void refresh();
+    };
+    window.addEventListener('instaplan:chat-reset',resetReceived);
+    return()=>window.removeEventListener('instaplan:chat-reset',resetReceived);
+  },[chatId,me,refresh]);
   const request = async (path: string, body?: unknown, method = "POST") => {
+    const requestEpoch=epoch.current;
     setBusy(true); setError(null);
     try {
       const next = await apiFetch<Planner>(path, {method, ...(body === undefined ? {} : {body: JSON.stringify(body)})});
-      if (mounted.current) setPlanner(next);
+      if (mounted.current&&requestEpoch===epoch.current) setPlanner(next);
       window.dispatchEvent(new Event("instaplan:trip"));
       return true;
     } catch (cause) { if (mounted.current) setError(message(cause,"Could not update plan")); return false; }
     finally { if (mounted.current) setBusy(false); }
   };
+  const reset = async()=>{
+    epoch.current++;
+    setBusy(true);setError(null);
+    try{
+      const result=await apiFetch<{resetAt:string}>(`/chats/${chatId}/demo/reset`,{method:'POST'});
+      epoch.current++;setPlanner(null);setCreating(false);setSpeaker(me);
+      window.dispatchEvent(new CustomEvent('instaplan:chat-reset',{detail:{chatId,resetAt:result.resetAt}}));
+      window.dispatchEvent(new Event('instaplan:trip'));
+    }catch(cause){setError(message(cause,'Could not reset the demo.'));}
+    finally{setBusy(false);}
+  };
   const base = `/trips/${planner?.tripId}/planner`;
   const perspective = demoMode ? {demoSpeakerId:speaker || me} : {};
   return <Context.Provider value={{planner, loading, busy, error: error ?? loadError, chatId, me, members, demoMode,
     speaker: speaker || me, setSpeaker, creating, setCreating, refresh,
-    create: (title, topic, location) => request(`/chats/${chatId}/planners`, {title,topic,location,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone}),
+    reset, respond:(going)=>request(`${base}/respond`,{revision:planner?.approvalRevision,going,...perspective}),
+    create: (title, topic, location, place) => request(`/chats/${chatId}/planners`, {title,topic,location,...place,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone}),
     edit: (field,value) => request(base,{revision:planner?.revision,field,value,...perspective},"PATCH"),
     vote: (approve) => request(`${base}/approve`,{revision:planner?.approvalRevision,approve,...perspective}),
     action: (name) => request(`${base}/${name}`), pricing: (inputs) => request(`${base}/pricing`,{inputs}),

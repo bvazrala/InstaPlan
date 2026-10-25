@@ -20,7 +20,7 @@ from app.privacy.access import require_trip_member
 from app.privacy.context import PrivateContext
 from app.privacy.crypto import decrypt_json, decrypt_text, encrypt_json, encrypt_text
 from app.realtime import hub
-from app.schemas import BudgetSuggestionOut, CheckInMessageOut, PrivatePrefsData, PrivateOrigin, SendMessageIn
+from app.schemas import BudgetSuggestionOut, CheckInMessageOut, PrivatePrefsData, PrivateOrigin, SendMessageIn, ViewerWidgetIn, ViewerWidgetOut
 
 router = APIRouter(prefix="/trips/{trip_id}/me", tags=["private (owner only)"])
 
@@ -131,3 +131,11 @@ async def save_my_origin(trip_id: str, body: PrivateOrigin,
     save_prefs(session, trip_id, user.id, prefs)
     await hub.to_chat(trip.chat_id, {'type':'planner.updated','tripId':trip_id})
     return {'label':body.label}
+
+
+@router.post("/widget/flight",response_model=ViewerWidgetOut)
+async def my_flight_widget(trip_id: str,body: ViewerWidgetIn,user: CurrentUser=Depends(get_current_user),session: Session=Depends(get_session)):
+    require_trip_member(session,trip_id,user)
+    from app.logic.viewer_widget import flight_widget
+    special=await run_in_threadpool(flight_widget,session,trip_id,user.id,body.option_id,body.location_granted)
+    return ViewerWidgetOut(special=special)

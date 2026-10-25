@@ -10,9 +10,12 @@ test("local demo opens without a login and reaches the live planner", async ({ p
   await expect(page.getByText(/Let’s plan a New York trip/)).toBeVisible();
   await expect(page).not.toHaveURL(/\/login/);
   await page.getByRole("button", { name: "Add to chat" }).click();
-  await page.getByRole("button", { name: "Planner", exact:true }).last().click();
-  await expect(page.getByRole("dialog",{name:"Start a planner"})).toBeVisible();
-  await expect(page.getByRole("combobox",{name:"Topic",exact:true})).toHaveValue("Dining");
+  await page.getByRole("menuitem", { name: "Planner", exact:true }).click();
+  const creation=page.getByRole("dialog",{name:"Start a planner"});
+  const planner=page.locator('[aria-label="Live planner template"]');
+  await expect.poll(async()=>await creation.isVisible()||await planner.isVisible()).toBe(true);
+  if(await creation.isVisible()) await expect(page.getByRole("radio",{name:"Dining",exact:true})).toBeChecked();
+  else await expect(page.getByText(/private check-in/i)).toHaveCount(0);
   expect(supabaseRequests).toEqual([]);
   await page.screenshot({ path: info.outputPath("local-demo.png"), fullPage: true });
 });
