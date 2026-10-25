@@ -91,6 +91,17 @@ test('Maps creation, conversation-led RSVP, one animated choice and a clean demo
   await expect(page.getByText('Secondary choice')).toHaveCount(0);
   await expect(page.getByText(/private check-in/i)).toHaveCount(0);
   await expect(widget.getByRole('link',{name:'View place'})).toHaveAttribute('href','https://venue.example/');
+  const split=page.getByRole('region',{name:'Demo expense split'});
+  await expect(split).toBeVisible();
+  await expect(split.getByRole('listitem')).toHaveCount(2);
+  await split.getByLabel('Mock payment method').selectOption('Demo Venmo');
+  await split.getByRole('button',{name:'Simulate prepaying $60.00'}).click();
+  await expect(split.getByRole('button',{name:'Your share is prepaid'})).toBeDisabled();
+  await expect(split.getByRole('progressbar')).toHaveAttribute('aria-valuenow','6000');
+  await page.getByRole('button',{name:'Maya',exact:true}).click();
+  await split.getByLabel('Mock payment method').selectOption('Demo Apple Pay');
+  await split.getByRole('button',{name:'Simulate prepaying $60.00'}).click();
+  await expect(split.getByRole('progressbar')).toHaveAttribute('aria-valuenow','12000');
   expect(privateRequests).toEqual([]);
   expect(responses.map(response=>response.going)).toEqual([false,true,true]);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

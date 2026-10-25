@@ -1,0 +1,449 @@
+{
+  "nodes": [
+    {
+      "nodeId": "8:75",
+      "nodeName": "Flight / Animated formation",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, y: 8, }} animate={{ opacity: [0, 1, 1], y: [8, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.1094, 1], ease: [[0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, y: { duration: 3.2, times: [0, 0.1094, 1], ease: [[0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:76",
+      "nodeName": "Destination / event photo",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, }} animate={{ opacity: [0, 0, 1, 1], }} transition={{ opacity: { duration: 3.2, times: [0, 0.2656, 0.4688, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:77",
+      "nodeName": "Rectangle",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, }} animate={{ opacity: [0, 0, 1, 1], }} transition={{ opacity: { duration: 3.2, times: [0, 0.2813, 0.4531, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:78",
+      "nodeName": "Category",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, y: 4, }} animate={{ opacity: [0, 0, 1, 1], y: [4, 4, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.3438, 0.4844, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, y: { duration: 3.2, times: [0, 0.3438, 0.4844, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:80",
+      "nodeName": "Two-slide indicator",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, }} animate={{ opacity: [0, 0, 1, 1], }} transition={{ opacity: { duration: 3.2, times: [0, 0.4688, 0.5938, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:83",
+      "nodeName": "Hero text",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, y: 7, }} animate={{ opacity: [0, 0, 1, 1], y: [7, 7, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.3594, 0.5313, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, y: { duration: 3.2, times: [0, 0.3594, 0.5313, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:87",
+      "nodeName": "Apr 4–14 · Round trip · 1 stop",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, y: 5, }} animate={{ opacity: [0, 0, 1, 1], y: [5, 5, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.4063, 0.5469, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, y: { duration: 3.2, times: [0, 0.4063, 0.5469, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:88",
+      "nodeName": "Cheaper and premium options",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, y: 5, }} animate={{ opacity: [0, 0, 1, 1], y: [5, 5, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.4438, 0.5844, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, y: { duration: 3.2, times: [0, 0.4438, 0.5844, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:95",
+      "fallbackNodeId": "4:275",
+      "nodeName": "Widget / Booking action",
+      "nodeType": "INSTANCE",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, y: 5, }} animate={{ opacity: [0, 0, 1, 1], y: [5, 5, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.4813, 0.6219, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, y: { duration: 3.2, times: [0, 0.4813, 0.6219, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:96",
+      "nodeName": "Your route · 1 traveler",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, }} animate={{ opacity: [0, 0, 1, 1], }} transition={{ opacity: { duration: 3.2, times: [0, 0.5188, 0.6594, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:150",
+      "nodeName": "Loading / Pearl skeleton",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 1, }} animate={{ opacity: [1, 1, 0, 0], }} transition={{ opacity: { duration: 3.2, times: [0, 0.2969, 0.4375, 1], ease: [[0.22, 1, 0.36, 1], [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:162",
+      "nodeName": "Loading / Moving light",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "<motion.div initial={{ opacity: 0, x: 0, }} animate={{ opacity: [0, 0.8, 0.8, 0, 0], x: [0, 0, 700, 700], }} transition={{ opacity: { duration: 3.2, times: [0, 0.0438, 0.2813, 0.35, 1], ease: [[0.22, 1, 0.36, 1], [0.22, 1, 0.36, 1], [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, x: { duration: 3.2, times: [0, 0.025, 0.3375, 1], ease: [\"linear\", [0.22, 1, 0.36, 1], \"linear\"], repeat: Infinity }, }} />"
+      }
+    },
+    {
+      "nodeId": "8:171",
+      "nodeName": "Train / Animated formation",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Flight / Animated formation (8:75) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:172",
+      "nodeName": "Destination / event photo",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Destination / event photo (8:76) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:173",
+      "nodeName": "Rectangle",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Rectangle (8:77) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:174",
+      "nodeName": "Category",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Category (8:78) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:176",
+      "nodeName": "Two-slide indicator",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Two-slide indicator (8:80) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:179",
+      "nodeName": "Hero text",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Hero text (8:83) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:183",
+      "nodeName": "Apr 8 · One way · Direct train",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Apr 4–14 · Round trip · 1 stop (8:87) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:184",
+      "nodeName": "Cheaper and premium options",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Cheaper and premium options (8:88) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:191",
+      "fallbackNodeId": "4:275",
+      "nodeName": "Widget / Booking action",
+      "nodeType": "INSTANCE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Widget / Booking action (8:95) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:192",
+      "nodeName": "Your route · 1 traveler",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Your route · 1 traveler (8:96) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:246",
+      "nodeName": "Loading / Pearl skeleton",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Loading / Pearl skeleton (8:150) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:258",
+      "nodeName": "Loading / Moving light",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Loading / Moving light (8:162) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:267",
+      "nodeName": "Concert / Animated formation",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Flight / Animated formation (8:75) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:268",
+      "nodeName": "Destination / event photo",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Destination / event photo (8:76) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:269",
+      "nodeName": "Rectangle",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Rectangle (8:77) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:270",
+      "nodeName": "Category",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Category (8:78) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:272",
+      "nodeName": "Two-slide indicator",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Two-slide indicator (8:80) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:275",
+      "nodeName": "Hero text",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Hero text (8:83) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:279",
+      "nodeName": "Apr 11 · Concert tickets",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Apr 4–14 · Round trip · 1 stop (8:87) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:280",
+      "nodeName": "Cheaper and premium options",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Cheaper and premium options (8:88) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:287",
+      "fallbackNodeId": "4:275",
+      "nodeName": "Widget / Booking action",
+      "nodeType": "INSTANCE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Widget / Booking action (8:95) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:288",
+      "nodeName": "Per ticket · Compare availability",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Your route · 1 traveler (8:96) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:342",
+      "nodeName": "Loading / Pearl skeleton",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Loading / Pearl skeleton (8:150) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:354",
+      "nodeName": "Loading / Moving light",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Loading / Moving light (8:162) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:363",
+      "nodeName": "College football / Animated formation",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Flight / Animated formation (8:75) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:364",
+      "nodeName": "Destination / event photo",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Destination / event photo (8:76) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:365",
+      "nodeName": "Rectangle",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Rectangle (8:77) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:366",
+      "nodeName": "Category",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Category (8:78) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:368",
+      "nodeName": "Two-slide indicator",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Two-slide indicator (8:80) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:371",
+      "nodeName": "Hero text",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Hero text (8:83) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:375",
+      "nodeName": "Nov 14 · College football",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Apr 4–14 · Round trip · 1 stop (8:87) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:376",
+      "nodeName": "Cheaper and premium options",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Cheaper and premium options (8:88) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:383",
+      "fallbackNodeId": "4:275",
+      "nodeName": "Widget / Booking action",
+      "nodeType": "INSTANCE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Widget / Booking action (8:95) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:384",
+      "nodeName": "Per ticket · Compare availability",
+      "nodeType": "TEXT",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Your route · 1 traveler (8:96) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:438",
+      "nodeName": "Loading / Pearl skeleton",
+      "nodeType": "FRAME",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Loading / Pearl skeleton (8:150) — reuse the same component/variant instead of re-implementing it."
+      }
+    },
+    {
+      "nodeId": "8:450",
+      "nodeName": "Loading / Moving light",
+      "nodeType": "ROUNDED_RECTANGLE",
+      "codeSnippets": {
+        "motionDev": "// Identical motion.dev animation to node Loading / Moving light (8:162) — reuse the same component/variant instead of re-implementing it."
+      }
+    }
+  ],
+  "timelineCohorts": [
+    {
+      "rootNodeId": "8:72",
+      "durationMs": 3200,
+      "loopMode": "loop",
+      "memberNodeIds": [
+        "8:75",
+        "8:76",
+        "8:77",
+        "8:78",
+        "8:80",
+        "8:83",
+        "8:87",
+        "8:88",
+        "8:95",
+        "8:96",
+        "8:150",
+        "8:162",
+        "8:171",
+        "8:172",
+        "8:173",
+        "8:174",
+        "8:176",
+        "8:179",
+        "8:183",
+        "8:184",
+        "8:191",
+        "8:192",
+        "8:246",
+        "8:258",
+        "8:267",
+        "8:268",
+        "8:269",
+        "8:270",
+        "8:272",
+        "8:275",
+        "8:279",
+        "8:280",
+        "8:287",
+        "8:288",
+        "8:342",
+        "8:354",
+        "8:363",
+        "8:364",
+        "8:365",
+        "8:366",
+        "8:368",
+        "8:371",
+        "8:375",
+        "8:376",
+        "8:383",
+        "8:384",
+        "8:438",
+        "8:450"
+      ]
+    }
+  ]
+}

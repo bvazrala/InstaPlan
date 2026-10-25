@@ -1,0 +1,19 @@
+{
+  "source": "Figma node 8:72",
+  "durationMs": 3200,
+  "playsInChat": "once per new provider result",
+  "holdsFinalState": true,
+  "easing": "cubic-bezier(0.22, 1, 0.36, 1)",
+  "phases": [
+    { "name": "skeleton_shimmer", "startMs": 0, "endMs": 1120, "repeatWhileLoading": true },
+    { "name": "card_settle", "startMs": 0, "endMs": 350, "translateYPx": [8, 0] },
+    { "name": "photo_resolve", "startMs": 850, "endMs": 1500, "blurPx": [14, 0], "scale": [1.025, 1] },
+    { "name": "title_reveal", "startMs": 1150, "endMs": 1700, "translateYPx": [7, 0] },
+    { "name": "metadata_reveal", "startMs": 1300, "endMs": 1750 },
+    { "name": "choices_reveal", "startMs": 1420, "endMs": 1870 },
+    { "name": "action_reveal", "startMs": 1540, "endMs": 1990 },
+    { "name": "rest", "startMs": 2200, "endMs": 3200 }
+  ],
+  "reducedMotion": "no shimmer or movement; show content immediately",
+  "layout": { "width": 338, "height": 354, "remainsFixedWhileAnimating": true }
+}

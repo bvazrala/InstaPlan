@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { usePlanner } from "@/lib/planner-context";
 import { apiFetch } from "@/lib/api";
 import type { WidgetSpecial } from "@/lib/types";
+import DemoExpenseSplit from "../DemoExpenseSplit";
 import { PlanWidget } from "./PlanWidget";
 import { venueDeck, stayDeck } from "./adapters";
 import { selectWidgetDeck } from "./widget-rules";
@@ -67,6 +68,7 @@ export default function ChatPlanWidget({onOpen,embedded=false}:{onOpen:()=>void;
     {option?.capacityAckRequired&&<p className="text-[11px] leading-relaxed text-muted">Confirm lodging capacity with the listing before booking.</p>}
     {venue&&<p className="text-[11px] leading-relaxed text-muted">Confirm current prices and availability with the provider.</p>}
     {notice&&<p role="status" className="text-xs leading-relaxed text-muted">{notice}</p>}
+    {!embedded&&!active&&state.demoMode&&(venue||option)&&<DemoExpenseSplit key={`${p.tripId}:${p.approvalRevision}:${venue?.id??option?.id}`} place={venue?.title??option?.lodging??p.title}/>}
     {!embedded&&<button className="text-xs font-semibold text-violet-700" onClick={onOpen}>Plan details →</button>}
   </div>;
 }
