@@ -5,6 +5,7 @@ let state = null;
 let polling = false;
 let lastMessageId = null;
 let wasPollOpen = false;
+let splitDraft = "";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -65,11 +66,40 @@ function pollCard() {
   }).join("");
   const mine = poll.votes[activeUser];
   const canVote = poll.voters?.includes(activeUser) ?? true;
-  if (state.confirmed) return `<div class="poll-card done"><strong>✓ Plan confirmed</strong><p>${planSummary()}</p><div class="vote-row">${chips}</div></div>`;
+  if (state.confirmed) return `<div class="poll-card done"><strong>✓ Plan confirmed</strong><p>${planSummary()}</p><div class="vote-row">${chips}</div>${payCard()}</div>`;
   return `<div class="poll-card"><strong>Ready — does everyone agree?</strong><p>${planSummary()}</p><div class="vote-row">${chips}</div>
     ${canVote ? `<div class="poll-actions"><button type="button" data-vote="yes" class="${mine === true ? "picked" : ""}">Yes, I'm in</button><button type="button" data-vote="no" class="no ${mine === false ? "picked" : ""}">No, change it</button></div>` : `<p class="small">${escapeHtml(displayName(activeUser))} said they can't go, so they don't vote. If that changes, say so in the chat.</p>`}
     <div class="poll-foot"><span>${poll.yes} of ${poll.needed} yes needed (${poll.total} attending) · Muse keeps listening; any change to the plan resets the votes</span>
     <label>Needs <select id="threshold">${[0.4, 0.5, 0.6].map((v) => `<option value="${v}" ${v === poll.threshold ? "selected" : ""}>${v * 100}%</option>`).join("")}</select></label></div></div>`;
+}
+
+// ---- Paying for the confirmed plan: real transfers through Capital One Nessie (sandbox) ----
+const money = (cents) => `$${(cents / 100).toFixed(2)}`;
+function payCard() {
+  if (!state.nessie_configured) return `<p class="small pay-note">Add NESSIE_API_KEY to backend/.env to collect payments with Capital One Nessie.</p>`;
+  const payee = state.template.initiator, s = state.split;
+  if (!s) {
+    return activeUser === payee
+      ? `<div class="pay-box"><strong>Collect everyone's share</strong><div class="pay-entry"><span>$</span><input id="split-total" type="number" min="1" step="0.01" inputmode="decimal" placeholder="Total cost" value="${escapeHtml(splitDraft)}"><button type="button" id="split-button">Split with the group</button></div><p class="small">Split evenly with everyone who voted yes. Shares are paid to ${escapeHtml(displayName(payee))} through Capital One Nessie.</p></div>`
+      : `<div class="pay-box"><p class="small">Waiting for ${escapeHtml(displayName(payee))} to add the total cost.</p></div>`;
+  }
+  const owed = Object.entries(s.shares);
+  if (!owed.length) return `<div class="pay-box"><p class="small">Nobody else voted yes, so there's nothing to split.</p></div>`;
+  const rows = owed.map(([uid, cents]) => {
+    const paid = s.paid[uid];
+    const action = paid ? `<span class="paid">Paid ✓ <small>Nessie #${escapeHtml(String(paid.id).slice(-6))} · ${escapeHtml(paid.status)}</small></span>`
+      : uid === activeUser ? `<button type="button" data-pay="${uid}">Pay ${money(cents)}</button>` : `<span class="unpaid">Not paid yet</span>`;
+    return `<div class="pay-row">${avatar(uid)}<span class="pay-name">${escapeHtml(displayName(uid))}</span><b>${money(cents)}</b>${action}</div>`;
+  }).join("");
+  return `<div class="pay-box"><strong>${money(s.total_cents)} total · paid to ${escapeHtml(displayName(payee))}</strong><div class="pay-rows">${rows}</div><div class="poll-foot"><span>${Object.keys(s.paid).length} of ${owed.length} paid · Capital One Nessie</span><span id="my-balance"></span></div></div>`;
+}
+async function loadBalance() {
+  const el = $("my-balance");
+  if (!el) return;
+  try {
+    const payload = await (await fetch(`/api/balance?user_id=${activeUser}`, { cache: "no-store" })).json();
+    if (payload.balance !== undefined && $("my-balance") === el) el.textContent = `Your balance: $${Number(payload.balance).toFixed(2)}`;
+  } catch { /* balance is a nice-to-have */ }
 }
 
 function renderMessages() {
@@ -84,6 +114,7 @@ function renderMessages() {
     return `<div class="message-row ${mine ? "mine" : ""}">${mine ? "" : avatar(message.user_id)}<div class="message-body"><div class="message-meta">${escapeHtml(displayName(message.user_id))} · ${escapeHtml(new Date(message.sent_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</div><div class="bubble">${escapeHtml(message.text)}</div><div class="message-status">${escapeHtml(message.status === "listening" ? "Muse listening…" : message.status === "queued" ? "Queued" : message.status === "error" ? "Extraction failed" : "Processed")}</div></div></div>`;
   }).join("") : t ? "" : `<div class="empty-chat"><span>✦</span><h2>Start a plan to begin</h2><p>Tap + below and choose Planner.</p></div>`);
   if (messages.length) $("messages").insertAdjacentHTML("beforeend", pollCard());
+  if (state?.split && state.nessie_configured) loadBalance();
   const pollOpen = Boolean(state?.poll?.open);
   if (hadNewMessage || (pollOpen && !wasPollOpen)) $("messages").scrollTop = $("messages").scrollHeight;
   wasPollOpen = pollOpen;
@@ -200,7 +231,7 @@ function render() {
   if (!state) return;
   $("model-pill").textContent = state.muse_configured ? "● Muse Spark 1.3 connected" : "○ Muse key missing";
   $("model-pill").classList.toggle("off", !state.muse_configured);
-  renderUsers(); renderMessages(); renderReadiness(); if (!document.activeElement?.classList?.contains("place-input")) renderTemplate();
+  renderUsers(); if (document.activeElement?.id !== "split-total") renderMessages(); renderReadiness(); if (!document.activeElement?.classList?.contains("place-input")) renderTemplate();
   renderNotes(); renderSummary(); renderDebug();
 }
 function renderState(next) { state = next; render(); }
@@ -276,6 +307,8 @@ document.addEventListener("click", async (event) => {
   const hint = event.target.closest("[data-hint]");
   const geo = event.target.closest("[data-geo]");
   const vote = event.target.closest("[data-vote]");
+  const pay = event.target.closest("[data-pay]");
+  const splitButton = event.target.closest("#split-button");
   try {
     if (option) {
       const box = option.parentElement, input = box.previousElementSibling;
@@ -289,6 +322,12 @@ document.addEventListener("click", async (event) => {
       navigator.geolocation.getCurrentPosition(
         async (pos) => { try { renderState(await post("/api/origin", { user_id: geo.dataset.geo, lat: pos.coords.latitude, lng: pos.coords.longitude })); } catch (error) { showError(error.message); } },
         (error) => showError(`Location unavailable: ${error.message}`));
+    } else if (splitButton) {
+      renderState(await post("/api/split", { user_id: activeUser, total: Number($("split-total").value) }));
+      splitDraft = "";
+    } else if (pay) {
+      pay.disabled = true; pay.textContent = "Sending…";
+      try { renderState(await post("/api/pay", { user_id: pay.dataset.pay })); } catch (error) { render(); throw error; }
     } else if (vote) {
       renderState(await post("/api/vote", { user_id: activeUser, approve: vote.dataset.vote === "yes" }));
     }
@@ -330,3 +369,4 @@ $("custom-label").addEventListener("input", () => {
     } catch { /* the card keeps its emoji */ }
   }, 700);
 });
+document.addEventListener("input", (event) => { if (event.target.id === "split-total") splitDraft = event.target.value; });

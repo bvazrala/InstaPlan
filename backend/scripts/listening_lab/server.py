@@ -36,6 +36,12 @@ class Handler(BaseHTTPRequestHandler):
             query = parse_qs(urlsplit(self.path).query).get("q", [""])[0].strip()
             self._json(200, {"image": serp.category_image(serp.custom_query(query)) if len(query) >= 2 else None})
             return
+        if path == "/api/balance":
+            try:
+                self._json(200, ENGINE.balance(parse_qs(urlsplit(self.path).query).get("user_id", [""])[0]))
+            except (ValueError, RuntimeError) as exc:
+                self._json(400, {"error": str(exc)})
+            return
         if path == "/api/places":
             query = parse_qs(urlsplit(self.path).query)
             try:
@@ -81,6 +87,10 @@ class Handler(BaseHTTPRequestHandler):
                 result = ENGINE.set_origin(body.get("user_id", ""), float(body.get("lat")), float(body.get("lng")))
             elif path == "/api/vote":
                 result = ENGINE.vote(body.get("user_id", ""), bool(body.get("approve")))
+            elif path == "/api/split":
+                result = ENGINE.set_split(body.get("user_id", ""), float(body.get("total")))
+            elif path == "/api/pay":
+                result = ENGINE.pay(body.get("user_id", ""))
             elif path == "/api/threshold":
                 result = ENGINE.set_threshold(float(body.get("value")))
             else:

@@ -247,3 +247,82 @@ def test_start_attaches_a_photo_and_custom_label(monkeypatch):
     engine = ListeningEngine(muse=FakeMuse())
     state = engine.start("Night in", "Custom", "Austin", custom_label="Game night")
     assert state["template"]["custom_label"] == "Game night" and state["template"]["category_image"]["source"] == "s"
+
+
+# ---- Paying for the confirmed plan (Capital One Nessie, faked here: no network) ----
+
+def confirmed_engine(monkeypatch, yes=("u1", "u2", "u3")):
+    from scripts.listening_lab import nessie
+    transfers = []
+    monkeypatch.setattr(nessie, "accounts", lambda users: {u["id"]: f"acct-{u['id']}" for u in users})
+    monkeypatch.setattr(nessie, "transfer", lambda src, dst, amount, desc: transfers.append((src, dst, amount)) or {"id": f"t{len(transfers)}", "status": "pending"})
+    engine = ListeningEngine(FakeMuse())
+    engine.template = new_template("Dinner", "Dining", "Austin")  # initiator u1
+    engine.votes = {uid: True for uid in yes} | {"u4": False}
+    engine.confirmed = True
+    return engine, transfers
+
+
+def test_split_needs_a_confirmed_plan_and_the_initiator(monkeypatch):
+    engine, _ = confirmed_engine(monkeypatch)
+    with pytest.raises(ValueError, match="Only the person who started"):
+        engine.set_split("u2", 90)
+    engine.confirmed = False
+    with pytest.raises(ValueError, match="Confirm the plan"):
+        engine.set_split("u1", 90)
+
+
+def test_split_is_even_between_yes_voters_and_the_initiator(monkeypatch):
+    engine, _ = confirmed_engine(monkeypatch)
+    split = engine.set_split("u1", 100)["split"]
+    assert split["payee"] == "u1" and split["total_cents"] == 10000
+    assert split["shares"] == {"u2": 3300, "u3": 3300}  # whole dollars; u1 absorbs the extra $1; u4 voted no
+
+
+def test_pay_sends_one_transfer_to_the_initiator(monkeypatch):
+    engine, transfers = confirmed_engine(monkeypatch)
+    engine.set_split("u1", 90)
+    state = engine.pay("u2")
+    assert transfers == [("acct-u2", "acct-u1", 30.0)]
+    assert state["split"]["paid"]["u2"]["id"] == "t1"
+    with pytest.raises(ValueError, match="already paid"):
+        engine.pay("u2")
+    with pytest.raises(ValueError, match="doesn't owe"):
+        engine.pay("u4")
+    with pytest.raises(ValueError, match="Payments have started"):
+        engine.set_split("u1", 120)
+
+
+def test_new_session_clears_the_split(monkeypatch):
+    engine, _ = confirmed_engine(monkeypatch)
+    engine.set_split("u1", 90)
+    assert engine.start("Movie night", "Entertainment", "Austin")["split"] is None
+
+
+def test_balance_reflects_payments_even_if_the_sandbox_balance_does_not_move(monkeypatch):
+    from scripts.listening_lab import nessie
+    engine, _ = confirmed_engine(monkeypatch)
+    monkeypatch.setattr(nessie, "balance", lambda account: 1500.0)
+    engine.set_split("u1", 90)
+    assert engine.balance("u2")["balance"] == 1500.0
+    engine.pay("u2")
+    assert engine.balance("u2")["balance"] == 1470.0
+    assert engine.balance("u1")["balance"] == 1530.0
+
+
+def test_payment_is_a_withdrawal_plus_a_deposit_and_adapts_to_the_schema(monkeypatch):
+    from scripts.listening_lab import nessie
+    calls = []
+
+    def fake_call(method, path, body=None):
+        calls.append((path, dict(body or {})))
+        if "medium" in (body or {}):
+            raise RuntimeError('Nessie returned 400: "medium extra fields not permitted"')
+        return {"objectCreated": {"_id": f"id{len(calls)}", "status": body["status"]}}
+
+    monkeypatch.setattr(nessie, "_call", fake_call)
+    record = nessie.transfer("A", "B", 33.4, "InstaPlan: Dinner")
+    paths = [path for path, body in calls if "medium" not in body]
+    assert paths == ["/accounts/A/withdrawals", "/accounts/B/deposits"]
+    assert all(body["amount"] == 33 for path, body in calls)
+    assert record["status"] == "completed" and record["id"] and record["deposit_id"]

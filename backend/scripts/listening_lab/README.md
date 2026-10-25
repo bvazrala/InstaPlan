@@ -27,3 +27,7 @@ Other fixtures cover Travel and Entertainment. Tests use a fake client and make 
 ```
 
 The lab holds state in memory; restarting it clears the session. Everything typed in the chat is treated as public: there is no private-data handling here, and `budget` is an ordinary per-person field. `where.destination` is picked from Google Maps (key `GOOGLE_MAPS_API_KEY` in `backend/.env`, used only by the lab server); Muse only suggests a place name as a hint. `where.origins` comes from each member's device location, not from chat. `when.flexibility` treats an explicit “I'm flexible” as `null`; a participant who says nothing about timing remains missing. Muse keeps running notes, sees a few messages before and after each batch, and when the template is complete the chat shows a vote card (40/50/60% threshold) that confirms the plan.
+
+## Paying for the plan (Capital One Nessie)
+
+Once the vote confirms the plan, the person who started it enters the total cost. It is split evenly between them and everyone who voted yes, and each person pays their share with one tap: the lab server makes a real Nessie sandbox transfer from their account to the initiator's (`NESSIE_API_KEY` in `backend/.env`; `NESSIE_BASE_URL` optional). Each simulator user gets a Nessie customer and a $1,500 checking account on first use, remembered in `.cache/nessie.json`. The view shows only the active person's own balance.

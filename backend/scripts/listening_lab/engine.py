@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from .contracts import (CLUSTER_FIELDS, USER_IDS, USERS, apply_updates, attending, effective_attendance,
                         missing_fields, new_template)
-from . import places, serp
+from . import nessie, places, serp
 from .muse import MuseClient
 
 
@@ -44,6 +44,9 @@ class ListeningEngine:
         self.failed_batch: list[dict] = []
         self.processing = False
         self.confirmed = False
+        self.split: dict | None = None  # cost split after confirmation (Capital One Nessie)
+        self.paying: set[str] = set()
+        self.opening: dict[str, float] = {}  # Nessie balance when first shown; the sandbox doesn't move balances
         self.error: str | None = None
         self.decisions: list[dict] = []
         self.metrics = {"calls": 0, "batches": 0, "messages_processed": 0,
@@ -73,6 +76,9 @@ class ListeningEngine:
             self.failed_batch = []
             self.processing = False
             self.confirmed = False
+            self.split = None
+            self.paying = set()
+            self.opening = {}
             self.error = None
             self.decisions = []
             self.metrics = {"calls": 0, "batches": 0, "messages_processed": 0,
@@ -298,6 +304,72 @@ class ListeningEngine:
             self.confirmed = True
             return self.snapshot()
 
+    # ---- Paying for the confirmed plan (Capital One Nessie) ----
+
+    def set_split(self, user_id: str, total: float) -> dict:
+        """The person who started the plan enters the total; it is split evenly in whole dollars between them and
+        every yes voter (Nessie stores whole dollars). The initiator absorbs any leftover dollars."""
+        if user_id not in USER_IDS:
+            raise ValueError("Unknown simulator user")
+        if not 1 <= total <= 100_000:
+            raise ValueError("Enter a total between $1 and $100,000")
+        with self.lock:
+            if self.template is None or not self.confirmed:
+                raise ValueError("Confirm the plan before splitting the cost")
+            payee = self.template["initiator"]
+            if user_id != payee:
+                raise ValueError("Only the person who started the plan adds the cost")
+            if self.split and self.split["paid"]:
+                raise ValueError("Payments have started, so the total can't change")
+            people = sorted({payee} | {uid for uid, approve in self.votes.items() if approve})
+            dollars = round(total)
+            share = dollars // len(people)
+            self.split = {"payee": payee, "total_cents": dollars * 100,
+                          "shares": {uid: share * 100 for uid in people if uid != payee}, "paid": {}}
+            return self.snapshot()
+
+    def pay(self, user_id: str) -> dict:
+        """Sends this member's share from their Nessie account to the payee's. The network call runs outside the lock."""
+        with self.lock:
+            split = deepcopy(self.split)
+            if not split:
+                raise ValueError("There is no cost to split yet")
+            if user_id not in split["shares"]:
+                raise ValueError("This member doesn't owe anything for this plan")
+            if user_id in split["paid"] or user_id in self.paying:
+                raise ValueError("This share is already paid")
+            self.paying.add(user_id)
+            title = self.template["title"] if self.template else "plan"
+        try:
+            ids = nessie.accounts(list(USERS))
+            record = nessie.transfer(ids[user_id], ids[split["payee"]], split["shares"][user_id] / 100, f"InstaPlan: {title}")
+        finally:
+            with self.lock:
+                self.paying.discard(user_id)
+        with self.lock:
+            if not self.split or self.split["payee"] != split["payee"]:
+                raise ValueError("The plan changed while paying; check the transfer in Nessie")
+            self.split["paid"][user_id] = record
+            return self.snapshot()
+
+    def balance(self, user_id: str) -> dict:
+        """One member's own balance: their Nessie balance when first shown, plus this plan's payments.
+        The browser only asks for the person whose view is active."""
+        if user_id not in USER_IDS:
+            raise ValueError("Unknown simulator user")
+        with self.lock:
+            opening = self.opening.get(user_id)
+        if opening is None:
+            opening = nessie.balance(nessie.accounts(list(USERS))[user_id])
+            with self.lock:
+                opening = self.opening.setdefault(user_id, opening)
+        with self.lock:
+            split = deepcopy(self.split) or {"paid": {}, "shares": {}, "payee": None}
+        change = -split["shares"][user_id] if user_id in split["paid"] else 0
+        if user_id == split["payee"]:
+            change += sum(split["shares"][uid] for uid in split["paid"])
+        return {"balance": opening + change / 100}
+
     def snapshot(self) -> dict:
         with self.lock:
             missing = missing_fields(self.template) if self.template else []
@@ -313,6 +385,8 @@ class ListeningEngine:
                 "ready": bool(self.template is not None and not missing and not self.pending
                               and not self.processing and not self.error),
                 "confirmed": self.confirmed,
+                "split": self.split,
+                "nessie_configured": nessie.configured(),
                 "processing": self.processing,
                 "queued": len(self.pending),
                 "error": self.error,
