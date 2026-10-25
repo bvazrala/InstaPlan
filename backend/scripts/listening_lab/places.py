@@ -1,26 +1,18 @@
 """Google Maps lookups, proxied through the lab server so the key never reaches the browser."""
 
 import json
-import os
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
+
+from .settings import env
 
 NAME = "GOOGLE_MAPS_API_KEY"
 
 
 def _key() -> str:
     """Read only the Maps key, from the environment or the lab's / backend's .env file."""
-    if os.environ.get(NAME):
-        return os.environ[NAME]
-    for path in (Path(__file__).parent / ".env", Path(__file__).resolve().parents[2] / ".env"):
-        if path.is_file():
-            for line in path.read_text().splitlines():
-                key, _, value = line.partition("=")
-                if key.strip() == NAME and value.strip():
-                    return value.strip().strip("\"'")
-    return ""
+    return env(NAME)
 
 
 def configured() -> bool:

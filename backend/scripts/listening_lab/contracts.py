@@ -1,5 +1,6 @@
 """Pure validation and completion rules for the listening lab."""
 
+import re
 from copy import deepcopy
 from datetime import datetime
 
@@ -10,29 +11,36 @@ USERS = (
     {"id": "u4", "name": "Sam", "color": "#d268a1"},
 )
 USER_IDS = {user["id"] for user in USERS}
-TOPICS = {"Dining", "Travel", "Entertainment"}
+TOPICS = {"Dining", "Travel", "Entertainment", "Custom"}  # Custom: the group names its own category
+CUSTOM_LABEL = re.compile(r"^[\w &'/-]{2,40}$")
 MEALS = {"breakfast", "lunch", "dinner", "snack", "brunch", "coffee"}
 ACCOMMODATIONS = {"hotel", "airbnb", "hostel", "none"}
 # Muse sometimes names a topic field loosely; map the obvious synonyms instead of dropping the update.
 FIELD_ALIASES = {"transportation": "trip_type", "transport": "trip_type", "travel_mode": "trip_type",
                  "mode_of_travel": "trip_type", "travel_type": "trip_type", "lodging": "accommodation",
-                 "stay": "accommodation", "activity": "activity_type", "food_type": "cuisine"}
+                 "stay": "accommodation", "activity": "activity_type", "food_type": "cuisine",
+                 "event": "event_type", "event_kind": "event_type"}
 TRIP_TYPES = {"flights": "flight", "fly": "flight", "plane": "flight", "airplane": "flight", "air": "flight",
               "buses": "bus", "trains": "train", "rail": "train"}
 CLUSTER_FIELDS = {
     "Dining": {"meal_type", "cuisine"},
     "Travel": {"trip_type", "accommodation"},
     "Entertainment": {"activity_type"},
+    "Custom": {"event_type"},  # a short description of what the custom event is
 }
 
 
 def new_template(title: str, topic: str, location: str = "", location_kind: str = "search_area",
-                 place: dict | None = None, initiator: str = "u1") -> dict:
+                 place: dict | None = None, initiator: str = "u1", custom_label: str = "",
+                 category_image: dict | None = None) -> dict:
     title = title.strip()
     if not 1 <= len(title) <= 120:
         raise ValueError("Title is required (up to 120 characters)")
     if topic not in TOPICS:
-        raise ValueError("Choose Dining, Travel, or Entertainment")
+        raise ValueError("Choose Dining, Travel, Entertainment, or a custom category")
+    custom_label = custom_label.strip()
+    if topic == "Custom" and not CUSTOM_LABEL.match(custom_label):
+        raise ValueError("Name your category (2-40 letters, numbers or spaces)")
     if location_kind not in {"destination", "search_area"}:
         raise ValueError("Invalid location type")
     if len(location) > 200:
@@ -42,6 +50,8 @@ def new_template(title: str, topic: str, location: str = "", location_kind: str 
         "initiator": initiator,  # who opened the planner; not an owner
         "base_location": (place or {}).get("address") or location.strip() or None,  # where the group starts from
         "topic": topic,
+        "custom_label": custom_label if topic == "Custom" else None,  # what the user called their category
+        "category_image": category_image,  # {url, title, source} from a photo search; display only
         "when": {"flexibility": {}, "agreed": None},
         "where": {"destination": None, "destination_hint": None, "search_area": None, "origins": {}},
         "preferences": {},

@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from .contracts import (CLUSTER_FIELDS, USER_IDS, USERS, apply_updates, attending, effective_attendance,
                         missing_fields, new_template)
-from . import places
+from . import places, serp
 from .muse import MuseClient
 
 
@@ -50,13 +50,15 @@ class ListeningEngine:
                         "prompt_tokens": 0, "completion_tokens": 0, "reasoning_tokens": 0, "last_latency_ms": None}
 
     def start(self, title: str, topic: str, location: str = "", location_kind: str = "search_area",
-              place_id: str = "", initiator: str = "u1") -> dict:
+              place_id: str = "", initiator: str = "u1", custom_label: str = "") -> dict:
         if initiator not in USER_IDS:
             raise ValueError("Unknown simulator user")
         place = places.details(place_id) if location_kind == "destination" and place_id else None
         if location_kind == "destination" and place is None and location.strip():
             raise ValueError("Pick the exact destination from the Google Maps results")
-        template = new_template(title, topic, location, location_kind, place, initiator)
+        query = serp.custom_query(custom_label.strip()) if topic == "Custom" else serp.PRESET_QUERIES.get(topic, "")
+        image = serp.category_image(query) if query and (topic != "Custom" or len(custom_label.strip()) >= 2) else None
+        template = new_template(title, topic, location, location_kind, place, initiator, custom_label, image)
         with self.lock:
             if self.timer:
                 self.timer.cancel()

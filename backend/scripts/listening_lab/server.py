@@ -5,7 +5,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import places
+from . import places, serp
 from .engine import ListeningEngine
 
 STATIC = Path(__file__).parent / "static"
@@ -28,6 +28,13 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == "/api/state":
             self._json(200, ENGINE.snapshot())
+            return
+        if path == "/api/categories":
+            self._json(200, {"images": serp.preset_images(), "photos": serp.configured()})
+            return
+        if path == "/api/category-image":
+            query = parse_qs(urlsplit(self.path).query).get("q", [""])[0].strip()
+            self._json(200, {"image": serp.category_image(serp.custom_query(query)) if len(query) >= 2 else None})
             return
         if path == "/api/places":
             query = parse_qs(urlsplit(self.path).query)
@@ -63,7 +70,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/session":
                 result = ENGINE.start(body.get("title", ""), body.get("topic", ""),
                                       body.get("location", ""), body.get("location_kind", "search_area"),
-                                      body.get("place_id", ""), body.get("user_id", "u1"))
+                                      body.get("place_id", ""), body.get("user_id", "u1"), body.get("custom_label", ""))
             elif path == "/api/messages":
                 result = ENGINE.add_message(body.get("user_id", ""), body.get("text", ""))
             elif path == "/api/retry":
