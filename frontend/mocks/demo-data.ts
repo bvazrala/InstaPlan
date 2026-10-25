@@ -9,6 +9,7 @@ export const MEMBERS: Member[] = [
   { id: "maya", name: "Maya", handle: "maya.k", hue: 24, origin: "AUS" },
   { id: "alex", name: "Alex", handle: "alexr", hue: 200, origin: "DFW" },
   { id: "sam", name: "Sam", handle: "sam.t", hue: 330, origin: "AUS" },
+  { id: "jordan", name: "Jordan", handle: "jordan.p", hue: 150, origin: "HOU" },
 ];
 
 export const memberById = (id: string) => MEMBERS.find((m) => m.id === id) ?? ME;

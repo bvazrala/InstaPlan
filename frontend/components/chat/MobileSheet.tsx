@@ -10,8 +10,8 @@ export default function MobileSheet() {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center lg:hidden">
       <button aria-label="Close" className="absolute inset-0 bg-black/40" onClick={() => setPanelOpen(false)} />
-      <div className="animate-sheet no-scrollbar relative max-h-[88dvh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl">
-        <div className="sticky top-0 z-10 flex justify-center bg-white pt-2"><span className="h-1 w-10 rounded-full bg-neutral-300" /></div>
+      <div role="dialog" aria-modal="true" className="animate-sheet no-scrollbar relative max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)]">
+        <div className="sticky top-0 z-20 flex justify-center bg-white pt-2.5"><span className="h-1 w-9 rounded-full bg-neutral-300" /></div>
         <PanelBody onClose={() => setPanelOpen(false)} />
       </div>
     </div>

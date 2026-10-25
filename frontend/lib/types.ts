@@ -37,7 +37,7 @@ export type Option = {
   hue: number;
 };
 
-export type Stage = "idle" | "collecting" | "voting" | "checkin" | "options" | "picked" | "settle";
+export type Stage = "idle" | "collecting" | "voting" | "checkin" | "options" | "expenses" | "picked" | "finalize" | "settle";
 
 export type SortKey = "cheapest" | "fastest" | "balanced" | "fairest";
 

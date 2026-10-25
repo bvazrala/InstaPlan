@@ -1,54 +1,77 @@
 "use client";
 
-import { ArrowLeft, XCircle } from "lucide-react";
+import { X } from "lucide-react";
 import { useTrip } from "@/lib/trip-context";
 import type { Stage } from "@/lib/types";
+import { Badge, Button } from "@/components/ui/primitives";
 import CollectingView from "./CollectingView";
 import VotingView from "./VotingView";
-import PrivateCheckIn from "@/components/private/PrivateCheckIn";
+import CheckInView from "./CheckInView";
 import OptionsView from "./options/OptionsView";
+import ExpensesView from "./ExpensesView";
 import SummaryView from "./SummaryView";
+import FinalizeView from "./FinalizeView";
 import SettleView from "./SettleView";
+import ParticipationBar from "./ParticipationBar";
 
 const STEPS: { id: Exclude<Stage, "idle">; label: string }[] = [
-  { id: "collecting", label: "Collect" },
+  { id: "collecting", label: "Details" },
   { id: "voting", label: "Vote" },
   { id: "checkin", label: "Check-in" },
   { id: "options", label: "Options" },
-  { id: "picked", label: "Summary" },
-  { id: "settle", label: "Settle up" },
+  { id: "expenses", label: "Expenses" },
+  { id: "picked", label: "Cost" },
+  { id: "finalize", label: "Finalize" },
+  { id: "settle", label: "Payments" },
 ];
 
 export default function TripPanel({ onClose }: { onClose?: () => void }) {
-  const { stage, setStage } = useTrip();
+  const { stage, setStage, profile, participants, finalized } = useTrip();
+  const dest = profile.group.destination?.value;
+  const dates = profile.group.dates?.value;
+
   return (
-    <div className="p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <button onClick={() => setStage("idle")} className="flex items-center gap-1.5 text-[15px] font-semibold">
-          <ArrowLeft size={16} /> Trip Planning
-        </button>
-        <button onClick={() => { setStage("idle"); onClose?.(); }} aria-label="Close" className="text-foreground"><XCircle size={20} /></button>
-      </div>
+    <div>
+      <header className="sticky top-0 z-20 flex h-[68px] items-center justify-between border-b border-line bg-white px-5">
+        <div className="min-w-0 leading-tight">
+          <p className="flex items-center gap-2 text-base font-semibold">
+            <span className="truncate">{dest ? `Trip to ${dest}` : "New trip"}</span>
+            {finalized && <Badge variant="success">Finalized</Badge>}
+          </p>
+          <p className="text-xs text-muted">{dates ?? "Dates not set"} · {participants.length} going</p>
+        </div>
+        {onClose && <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close"><X size={18} /></Button>}
+      </header>
 
-      {/* Demo stage jumper: lets teammates and judges hop between steps. */}
-      <div className="no-scrollbar -mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1">
-        {STEPS.map((s, i) => {
-          const active = s.id === stage;
-          return (
-            <button key={s.id} onClick={() => setStage(s.id)}
-              className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${active ? "brand-gradient text-white" : "bg-surface text-muted hover:bg-neutral-100"}`}>
-              {i + 1} · {s.label}
-            </button>
-          );
-        })}
-      </div>
+      <nav className="no-scrollbar sticky top-[68px] z-10 overflow-x-auto border-b border-line bg-white px-5 py-2.5" aria-label="Trip steps">
+        <div className="inline-flex h-9 items-center rounded-lg bg-neutral-100 p-[3px]">
+          {STEPS.map((s) => {
+            const active = s.id === stage;
+            return (
+              <button
+                key={s.id}
+                ref={(el) => { if (active && el) el.scrollIntoView({ inline: "center", block: "nearest" }); }}
+                onClick={() => setStage(s.id)}
+                aria-current={active ? "step" : undefined}
+                className={`h-full whitespace-nowrap rounded-md px-3 text-[13px] font-medium transition ${active ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-900"}`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
-      <div key={stage} className="animate-in-fade">
+      <ParticipationBar />
+
+      <div key={stage} className="animate-in-fade p-5">
         {stage === "collecting" && <CollectingView />}
         {stage === "voting" && <VotingView />}
-        {stage === "checkin" && <PrivateCheckIn />}
+        {stage === "checkin" && <CheckInView />}
         {stage === "options" && <OptionsView />}
+        {stage === "expenses" && <ExpensesView />}
         {stage === "picked" && <SummaryView />}
+        {stage === "finalize" && <FinalizeView />}
         {stage === "settle" && <SettleView />}
       </div>
     </div>

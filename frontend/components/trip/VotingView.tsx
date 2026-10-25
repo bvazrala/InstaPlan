@@ -1,53 +1,57 @@
 "use client";
 
-import { useState } from "react";
-import { Check, X } from "lucide-react";
-import { MEMBERS } from "@/mocks/demo-data";
+import { Check } from "lucide-react";
 import { useTrip } from "@/lib/trip-context";
+import { displayName } from "@/lib/trip-model";
 import { Avatar } from "@/components/chat/Avatar";
-import { Card, GhostButton, Label, PrimaryButton } from "@/components/ui/primitives";
-
-type Vote = "yes" | "no" | undefined;
+import { Badge, Button, PrimaryButton, Progress, GhostButton } from "@/components/ui/primitives";
+import { NotIncluded } from "./Criteria";
 
 export default function VotingView() {
-  const { setStage } = useTrip();
-  const [votes, setVotes] = useState<Record<string, Vote>>({ maya: "yes", alex: "yes", sam: undefined, me: undefined });
-  const yes = Object.values(votes).filter((v) => v === "yes").length;
-  const majority = yes > MEMBERS.length / 2;
+  const { trip, participants, inactive, profile, join, optOut, setStage } = useTrip();
+  const yes = participants.filter((id) => trip.votes[id] === "yes").length;
+  const majority = yes > participants.length / 2;
+  const going = participants.includes("me");
+  const dest = profile.group.destination?.value;
+  const dates = profile.group.dates?.value;
 
   return (
-    <div className="space-y-3">
-      <Card className="text-center">
-        <p className="text-base font-bold">We&apos;re going?</p>
-        <p className="mt-0.5 text-xs text-muted">New York City · Dec 18 – 21 · 4 people</p>
-        <div className="mt-3 flex gap-2">
-          <PrimaryButton onClick={() => setVotes((v) => ({ ...v, me: "yes" }))}>Yes, we&apos;re going</PrimaryButton>
-          <GhostButton onClick={() => setVotes((v) => ({ ...v, me: "no" }))}>Not yet</GhostButton>
-        </div>
-      </Card>
+    <div>
+      <h3 className="text-lg font-semibold tracking-tight">Are we going?</h3>
+      <p className="mt-0.5 text-sm text-muted">{[dest ?? "Destination not set", dates ?? "dates not set"].join(" · ")}</p>
 
-      <div>
-        <Label>{yes} of {MEMBERS.length} in</Label>
-        <div className="mb-3 h-2 overflow-hidden rounded-full bg-surface"><div className="brand-gradient h-full transition-all" style={{ width: `${(yes / MEMBERS.length) * 100}%` }} /></div>
-        <ul className="space-y-1.5">
-          {MEMBERS.map((m) => (
-            <li key={m.id} className="flex items-center gap-3 rounded-xl bg-surface px-3 py-2">
-              <Avatar id={m.id} size={26} />
-              <span className="flex-1 text-[13px] font-semibold">{m.name}</span>
-              {votes[m.id] === "yes" && <Check size={16} className="text-emerald-600" />}
-              {votes[m.id] === "no" && <X size={16} className="text-red-500" />}
-              {!votes[m.id] && <span className="text-[11px] text-muted">waiting</span>}
-            </li>
-          ))}
-        </ul>
+      <div className="mt-4 flex gap-2">
+        <Button className="flex-1" variant={trip.votes.me ? "default" : "outline"} onClick={join}>
+          {trip.votes.me && <Check size={15} />} I&apos;m in
+        </Button>
+        <Button className="flex-1" variant={going ? "outline" : "default"} onClick={optOut}>Not going</Button>
       </div>
+      {!going && <p className="mt-2 text-xs text-muted">You&apos;re not part of this plan. Tap I&apos;m in to rejoin.</p>}
 
-      {majority ? (
-        <PrimaryButton onClick={() => setStage("checkin")}>Majority yes · lock it in</PrimaryButton>
-      ) : (
-        <p className="text-center text-xs text-muted">Needs a majority to lock the trip.</p>
-      )}
-      <button onClick={() => setStage("collecting")} className="w-full text-center text-xs font-semibold text-muted underline underline-offset-2">Back to collecting</button>
+      <div className="mb-2 mt-7 flex items-baseline justify-between">
+        <h4 className="text-[13px] font-medium text-muted">Votes</h4>
+        <span className="text-xs text-muted">{yes} of {participants.length} in</span>
+      </div>
+      <Progress value={participants.length ? (yes / participants.length) * 100 : 0} />
+      <ul className="divide-y divide-line">
+        {participants.map((id) => (
+          <li key={id} className="flex items-center gap-3 py-2.5">
+            <Avatar id={id} size={32} />
+            <span className="flex-1 text-sm font-medium">{displayName(id)}</span>
+            {trip.votes[id] === "yes" ? <Badge variant="success">In</Badge> : <span className="text-[13px] text-muted">Hasn&apos;t voted</span>}
+          </li>
+        ))}
+      </ul>
+      <NotIncluded people={inactive} />
+
+      <div className="mt-6 space-y-2">
+        {majority ? (
+          <PrimaryButton onClick={() => setStage("checkin")}>Lock in trip</PrimaryButton>
+        ) : (
+          <p className="text-center text-xs text-muted">More than half of the people going need to be in to lock the trip.</p>
+        )}
+        <GhostButton onClick={() => setStage("collecting")}>Back to details</GhostButton>
+      </div>
     </div>
   );
 }

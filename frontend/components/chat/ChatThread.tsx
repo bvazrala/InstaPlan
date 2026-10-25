@@ -1,92 +1,144 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, ChevronRight, Image as ImageIcon, Mic, Phone, Plus, Video } from "lucide-react";
-import { MESSAGES, TRIP_CHAT, memberById } from "@/mocks/demo-data";
+import { ArrowLeft, CornerUpLeft, Image as ImageIcon, MapPin, Mic, Phone, Smile, Sticker, Video, X } from "lucide-react";
+import { memberById } from "@/mocks/demo-data";
 import type { Chat, Message } from "@/lib/types";
 import { useTrip } from "@/lib/trip-context";
-import { Avatar, GroupAvatar } from "./Avatar";
+import { Avatar, ChatAvatar } from "./Avatar";
 import TripChatCard from "@/components/trip/TripChatCard";
-import MessageBubble from "./MessageBubble";
+import MessageBubble, { type BubblePos } from "./MessageBubble";
+import { CHAT_META, STAGE_LABEL, baseMessages, separators } from "./chat-meta";
+
+const iconBtn = "flex size-9 items-center justify-center rounded-full text-foreground transition hover:bg-surface";
 
 export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
-  const { stage, setPanelOpen } = useTrip();
+  const { stage, setStage, panelOpen, setPanelOpen } = useTrip();
   const [draft, setDraft] = useState("");
-  const [sent, setSent] = useState<Message[]>([]);
+  const [sentBy, setSentBy] = useState<Record<string, Message[]>>({});
+  const [replyTo, setReplyTo] = useState<{ id: string; who: string; text: string } | null>(null);
+  const [quotes, setQuotes] = useState<Record<string, { who: string; text: string }>>({});
+  const [reacted, setReacted] = useState<Record<string, boolean>>({});
   const endRef = useRef<HTMLDivElement>(null);
 
-  const isCrew = chat.id === "crew";
-  const base = isCrew ? [...MESSAGES, ...(stage === "idle" ? TRIP_CHAT.slice(0, 1) : TRIP_CHAT)] : [
-    { id: "s1", from: chat.members[0], kind: "text", text: chat.sub } as Message,
-  ];
-  const messages = [...base, ...(isCrew ? sent : [])];
+  const sent = sentBy[chat.id] ?? [];
+  const messages = [...baseMessages(chat.id, stage), ...sent];
+  const seps = separators(chat.id);
+  const lastMine = messages.at(-1)?.from === "me";
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages.length, stage]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [chat.id, messages.length, sent.length, stage]);
 
   const send = () => {
     const t = draft.trim();
     if (!t) return;
-    setSent((s) => [...s, { id: `u${s.length}`, from: "me", kind: "text", text: t }]);
+    const id = `u-${chat.id}-${sent.length}`;
+    setSentBy((s) => ({ ...s, [chat.id]: [...(s[chat.id] ?? []), { id, from: "me", kind: "text", text: t }] }));
+    if (replyTo) setQuotes((q) => ({ ...q, [id]: { who: replyTo.who, text: replyTo.text } }));
+    setReplyTo(null);
     setDraft("");
   };
+  const reply = (m: Message) => setReplyTo({ id: m.id, who: m.from === "me" ? "yourself" : memberById(m.from).name, text: m.kind === "image" ? "Photo" : m.text });
+  const react = (id: string) => setReacted((r) => ({ ...r, [id]: !r[id] }));
+
+  const meta = CHAT_META[chat.id];
+  const subtitle = meta?.presence ?? chat.sub;
+  const online = !!meta?.online && !chat.group;
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white md:rounded-3xl md:border md:border-line">
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-line px-3 md:px-5">
-        <button onClick={onBack} className="p-1 md:hidden" aria-label="Back"><ArrowLeft size={22} /></button>
-        {chat.group ? <GroupAvatar ids={chat.members} size={40} /> : <Avatar id={chat.members[0]} size={40} />}
+    <div className="flex h-full min-h-0 flex-col bg-white">
+      <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-line px-3 md:px-5">
+        <button onClick={onBack} className={`${iconBtn} md:hidden`} aria-label="Back"><ArrowLeft size={22} /></button>
+        <ChatAvatar chat={chat} size={40} online={online} />
         <div className="min-w-0 flex-1 leading-tight">
-          <p className="flex items-center gap-1 truncate text-[15px] font-semibold">{chat.name} <ChevronRight size={14} className="text-muted" /></p>
-          <p className="text-xs text-muted">{chat.sub}</p>
+          <p className="truncate text-[15px] font-semibold">{chat.name}</p>
+          <p className={`flex items-center gap-1 truncate text-xs ${online ? "text-emerald-600" : "text-muted"}`}>
+            {online ? "Active now" : subtitle}
+          </p>
         </div>
-        <button className="flex h-9 w-9 items-center justify-center rounded-full md:border md:border-line" aria-label="Call"><Phone size={18} /></button>
-        <button className="flex h-9 w-9 items-center justify-center rounded-full md:border md:border-line" aria-label="Video"><Video size={18} /></button>
+        <button className={iconBtn} aria-label="Voice call"><Phone size={20} strokeWidth={1.75} /></button>
+        <button className={iconBtn} aria-label="Video call"><Video size={21} strokeWidth={1.75} /></button>
+        {chat.group && (
+          <button
+            onClick={() => setPanelOpen(!panelOpen)}
+            aria-pressed={panelOpen}
+            className={`flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition ${panelOpen ? "bg-brand text-white" : "bg-surface text-foreground hover:bg-neutral-100"}`}
+          >
+            <MapPin size={15} /> {stage === "idle" ? "Plan trip" : "Trip"}
+            {stage !== "idle" && <span className="hidden font-normal opacity-80 sm:inline">· {STAGE_LABEL[stage]}</span>}
+          </button>
+        )}
       </header>
 
-      <div className="no-scrollbar flex-1 space-y-1 overflow-y-auto px-4 py-4 md:px-8">
-        <p className="pb-3 text-center text-[11px] text-muted">Today 9:27 AM</p>
-        {messages.map((m, i) => {
-          const prev = messages[i - 1];
-          const first = prev?.from !== m.from;
-          const mine = m.from === "me";
-          const next = messages[i + 1];
-          const last = next?.from !== m.from;
-          return (
-            <div key={m.id} className={`animate-in-fade ${first ? "pt-3" : ""}`}>
-              {first && !mine && chat.group && <p className="mb-1 ml-10 text-[11px] text-muted">{memberById(m.from).name}</p>}
-              <div className={`flex items-end gap-2 ${mine ? "justify-end" : ""}`}>
-                {!mine && (
-                  <span className="w-7 shrink-0">{last && chat.group ? <Avatar id={m.from} size={28} /> : null}</span>
-                )}
-                <MessageBubble m={m} />
-              </div>
-            </div>
-          );
-        })}
-        {isCrew && <TripChatCard />}
-        {isCrew && sent.length > 0 && <p className="pr-1 text-right text-[11px] text-muted">Seen by everyone</p>}
+
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-8">
+        <div className="space-y-0.5">
+            {messages.map((m, i) => {
+              const prev = messages[i - 1];
+              const next = messages[i + 1];
+              const mine = m.from === "me";
+              const sameAsPrev = !!prev && prev.from === m.from && !seps[i];
+              const sameAsNext = !!next && next.from === m.from && !seps[i + 1];
+              const pos: BubblePos = m.kind === "image" ? "single" : sameAsPrev ? (sameAsNext ? "middle" : "last") : sameAsNext ? "first" : "single";
+              const showName = !mine && chat.group && !sameAsPrev;
+              return (
+                <div key={m.id} className="animate-in-fade">
+                  {seps[i] && <p className="pb-3 pt-4 text-center text-xs font-medium text-muted">{seps[i]}</p>}
+                  {!sameAsPrev && i > 0 && !seps[i] && <div className="h-2.5" />}
+                  {showName && <p className="mb-0.5 ml-10 text-[11px] text-muted">{memberById(m.from).name}</p>}
+                  <div className={`flex items-end gap-2 ${mine ? "justify-end" : ""}`}>
+                    {!mine && <span className="w-7 shrink-0">{!sameAsNext && chat.group ? <Avatar id={m.from} size={28} /> : null}</span>}
+                    <div className={`flex min-w-0 flex-1 flex-col ${mine ? "items-end" : "items-start"}`}>
+                      {quotes[m.id] && (
+                        <p className="mb-0.5 max-w-[68%] truncate rounded-xl bg-surface px-3 py-1 text-xs text-muted">
+                          Replying to {quotes[m.id].who}: {quotes[m.id].text}
+                        </p>
+                      )}
+                      <MessageBubble m={m} pos={pos} reacted={!!reacted[m.id]} onReact={() => react(m.id)} onReply={() => reply(m)} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {chat.group && <TripChatCard />}
+            {lastMine && <p className="pr-1 pt-1.5 text-right text-[11px] text-muted">Seen</p>}
+        </div>
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 border-t border-line p-3 md:p-4">
-        <div className="flex items-center gap-2 rounded-full bg-surface py-1.5 pl-1.5 pr-2">
-          <button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3b9cf5] text-white" aria-label="Camera"><Camera size={18} /></button>
+      <div className="shrink-0 px-3 pb-3 pt-1 md:px-5 md:pb-5 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
+        {chat.group && stage === "idle" && (
+          <div className="no-scrollbar -mx-1 mb-2 flex gap-2 overflow-x-auto px-1">
+            <button
+              onClick={() => { setStage("collecting"); setPanelOpen(true); }}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-[13px] font-semibold transition hover:bg-surface"
+            >
+              <MapPin size={14} className="text-brand" /> Plan a trip
+            </button>
+          </div>
+        )}
+        {replyTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-xs">
+            <CornerUpLeft size={14} className="shrink-0 text-muted" />
+            <p className="min-w-0 flex-1 truncate text-muted">Replying to <span className="font-semibold text-foreground">{replyTo.who}</span>: {replyTo.text}</p>
+            <button onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={14} /></button>
+          </div>
+        )}
+        <div className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-white pl-3 pr-1.5 transition focus-within:border-neutral-300">
+          <Smile size={22} strokeWidth={1.75} className="text-foreground" />
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Message..."
-            className="min-w-0 flex-1 bg-transparent px-1 text-sm outline-none placeholder:text-muted"
+            placeholder="Message…"
+            className="min-w-0 flex-1 bg-transparent px-2 py-2.5 text-[15px] outline-none placeholder:text-muted "
           />
-          {draft ? (
+          {draft.trim() ? (
             <button onClick={send} className="px-3 text-sm font-semibold text-brand">Send</button>
           ) : (
             <>
-              <Mic size={20} className="mx-1 md:hidden" />
-              <ImageIcon size={20} className="mx-1 md:hidden" />
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[10px] font-bold">GIF</span>
-              <button onClick={() => setPanelOpen(true)} className="flex h-8 w-8 items-center justify-center rounded-full bg-white" aria-label="More options"><Plus size={18} /></button>
-              <span className="hidden h-8 w-8 items-center justify-center rounded-full bg-white md:flex"><Mic size={16} /></span>
+              <button className={iconBtn} aria-label="Voice note"><Mic size={21} strokeWidth={1.75} /></button>
+              <button className={iconBtn} aria-label="Photo"><ImageIcon size={21} strokeWidth={1.75} /></button>
+              <button className={`${iconBtn} hidden md:flex`} aria-label="Sticker"><Sticker size={21} strokeWidth={1.75} /></button>
             </>
           )}
         </div>

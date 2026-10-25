@@ -1,10 +1,10 @@
 "use client";
 
 import { useTrip } from "@/lib/trip-context";
-import MoreOptions from "./MoreOptions";
+import TripStart from "@/components/trip/TripStart";
 import TripPanel from "@/components/trip/TripPanel";
 
 export default function PanelBody({ onClose }: { onClose?: () => void }) {
   const { stage } = useTrip();
-  return stage === "idle" ? <MoreOptions onClose={onClose} /> : <TripPanel onClose={onClose} />;
+  return stage === "idle" ? <TripStart onClose={onClose} /> : <TripPanel onClose={onClose} />;
 }

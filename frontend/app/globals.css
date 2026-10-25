@@ -4,7 +4,7 @@
   --background: #ffffff;
   --foreground: #262626;
   --muted: #737373;
-  --line: #efefef;
+  --line: #e6e6ea;
   --surface: #fafafa;
   --bubble: #efefef;
   --brand-from: #7c3aed;
@@ -30,7 +30,9 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.brand-gradient { background: linear-gradient(135deg, #8b5cf6 0%, #5b3df5 55%, #4f46e5 100%); }
+/* Kept under its old name so existing components keep working; now a flat accent instead of a gradient. */
+.brand-gradient { background: var(--color-brand); }
+.brand-gradient:hover { background: #5a2fd6; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 

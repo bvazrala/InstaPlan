@@ -1,55 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Lock } from "lucide-react";
+import { useTrip } from "@/lib/trip-context";
 import { money } from "@/lib/format";
+import { transfersFor } from "@/lib/expenses";
+import { displayName } from "@/lib/trip-model";
 import { Avatar } from "@/components/chat/Avatar";
-import { Card, GhostButton, Label } from "@/components/ui/primitives";
+import { Button, Progress } from "@/components/ui/primitives";
 
-const EXPENSES = [{ id: "e1", what: "Rental deposit (LES loft)", payer: "maya", amount: 860 }];
-const SPLIT = [
-  { from: "me", to: "maya", amount: 215 },
-  { from: "alex", to: "maya", amount: 215 },
-  { from: "sam", to: "maya", amount: 215 },
-];
-
+/** Step 8: who pays whom, worked out from the logged expenses. Opens once the trip is finalized. */
 export default function SettleView() {
-  const [paid, setPaid] = useState<string[]>([]);
-  return (
-    <div className="space-y-3">
-      <div>
-        <Label>Shared expenses</Label>
-        {EXPENSES.map((e) => (
-          <Card key={e.id} className="flex items-center gap-3">
-            <Avatar id={e.payer} size={30} />
-            <div className="flex-1"><p className="text-[13px] font-semibold">{e.what}</p><p className="text-[11px] text-muted">Paid by Maya · split 4 ways</p></div>
-            <p className="font-bold">{money(e.amount)}</p>
-          </Card>
-        ))}
-        <GhostButton className="mt-2 flex items-center justify-center gap-1.5"><Plus size={14} /> Log an expense</GhostButton>
-      </div>
+  const { trip, participants, update, setStage, need, accepted, finalized } = useTrip();
+  const { expenses, paid } = trip;
 
-      <div>
-        <Label>Suggested transfers</Label>
-        <ul className="space-y-2">
-          {SPLIT.map((t) => {
-            const key = t.from;
+  if (!finalized) {
+    return (
+      <div className="flex flex-col items-center pt-6 text-center">
+        <span className="flex size-14 items-center justify-center rounded-full border border-line"><Lock size={22} strokeWidth={1.5} /></span>
+        <h3 className="mt-4 text-lg font-semibold tracking-tight">Payments aren&apos;t open yet</h3>
+        <p className="mt-1 max-w-[270px] text-sm text-muted">They open once more than half of the people going have accepted the final plan.</p>
+        <div className="mt-5 w-full"><Progress value={Math.min(100, (accepted / need) * 100)} /><p className="mt-2 text-xs text-muted">{accepted} of {need} needed have accepted</p></div>
+        <Button className="mt-5 w-full" onClick={() => setStage("finalize")}>Go to finalize</Button>
+      </div>
+    );
+  }
+
+  const transfers = transfersFor(expenses, participants);
+  return (
+    <div>
+      <h3 className="text-lg font-semibold tracking-tight">Payments</h3>
+      <p className="mt-0.5 text-[13px] leading-snug text-muted">Worked out from the {expenses.length} {expenses.length === 1 ? "expense" : "expenses"} the group logged.</p>
+
+      <h4 className="mb-1 mt-6 text-[13px] font-medium text-muted">Who pays whom</h4>
+      {transfers.length === 0 ? (
+        <p className="py-2 text-sm text-muted">{expenses.length ? "Everyone is settled." : "No expenses were logged, so nobody owes anything."}</p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {transfers.map((t) => {
+            const key = `${t.from}>${t.to}:${t.amount}`;
             const done = paid.includes(key);
+            const mine = t.from === "me";
             return (
-              <li key={key} className="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2.5">
-                <Avatar id={t.from} size={26} />
-                <span className="flex-1 text-[13px]"><b>{t.from === "me" ? "You" : t.from[0].toUpperCase() + t.from.slice(1)}</b> → Maya</span>
-                <span className="text-[13px] font-bold">{money(t.amount)}</span>
-                <button onClick={() => setPaid((p) => [...p, key])} disabled={done}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${done ? "bg-emerald-100 text-emerald-700" : "brand-gradient text-white"}`}>
-                  {done ? <Check size={13} /> : "Pay"}
-                </button>
+              <li key={key} className="flex items-center gap-3 py-2.5">
+                <Avatar id={t.from} size={32} />
+                <span className="min-w-0 flex-1 text-sm leading-tight">
+                  <span className="font-medium">{displayName(t.from)}</span> <span className="text-muted">to</span> <span className="font-medium">{displayName(t.to)}</span>
+                </span>
+                <span className="text-sm font-semibold">{money(t.amount)}</span>
+                {mine ? (
+                  <Button size="sm" variant={done ? "secondary" : "default"} disabled={done} className="min-w-16" onClick={() => update((s) => ({ paid: [...s.paid, key] }))}>
+                    {done ? <Check size={15} /> : "Pay"}
+                  </Button>
+                ) : (
+                  <span className="min-w-16 text-center text-[13px] text-muted">{done ? "Paid" : "Owes"}</span>
+                )}
               </li>
             );
           })}
         </ul>
-        <p className="mt-2 text-[11px] text-muted">Transfers run through Capital One Nessie (sandbox accounts).</p>
-      </div>
+      )}
+      <p className="mt-3 text-xs text-muted">Payments go through Capital One Nessie (sandbox).</p>
     </div>
   );
 }
