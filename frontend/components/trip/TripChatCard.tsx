@@ -48,6 +48,7 @@ export default function TripChatCard() {
   const done = participants.filter((id) => trip.expensesDone.includes(id)).length;
   const last = trip.expenses.at(-1);
   const body: Record<Exclude<Stage, "idle">, { title: string; line: string; cta: string }> = {
+    confirmed: {title:"Initial plan approved",line:"Finding recommendations for the approved plan.",cta:"Open planner"},
     collecting: { title: "Trip details", line: `${filledFields(profile, participants)} of ${totalFields(participants)} details filled in from the chat`, cta: "View details" },
     voting: { title: "Are we going?", line: `${yes} of ${participants.length} are in so far.`, cta: "Vote" },
     checkin: { title: "Check-in", line: `${trip.checkedIn.filter((id) => participants.includes(id)).length} of ${participants.length} have submitted. Your answers stay private.`, cta: "Open check-in" },

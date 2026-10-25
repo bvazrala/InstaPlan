@@ -37,10 +37,12 @@ def _worker(trip_id: str, run_id: str):
         chat_id = trip.chat_id
         try:
             published = generate_options(session, trip, run_id=run_id)
-        except Exception:
+        except Exception as exc:
+            from app.integrations.serpapi_client import TravelDataError
+            unavailable = isinstance(exc, TravelDataError) and exc.code == 'provider_not_configured'
             session.rollback()
             # No exception repr/traceback: model or HTTP errors may contain private input or credentials.
-            finish_state(session, trip_id, run_id, "failed", {"message": "Option generation failed. Please retry."})
+            finish_state(session, trip_id, run_id, "failed", {"message": "Recommendations are unavailable until the provider is connected." if unavailable else "Option generation failed. Please retry."})
             return None
         return chat_id if published else None
 

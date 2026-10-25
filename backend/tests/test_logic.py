@@ -375,3 +375,26 @@ def test_mixed_direction_provider_duration_is_not_counted_as_return_only():
     raw["total_duration"] = 230
     choice = FlightOptionComplete.from_dict(raw, outbound=outbound)
     assert choice.total_duration_min == 230
+
+
+def test_public_planner_dates_use_local_day_and_leave_ambiguity_unresolved():
+    from app.logic.listening import ground_timing
+    update={'field':'when.agreed','value':{'label':'Tomorrow at dinner','date':'2099-01-01'},'source_message_id':'m'}
+    result=ground_timing([update],[{'id':'m','text':'Tomorrow at dinner works'}],'2026-10-25')
+    assert result[0]['value']['date']=='2026-10-26'
+    result=ground_timing([update],[{'id':'m','text':'Maybe next weekend'}],'2026-10-25')
+    assert result[0]['value']['date'] is None
+    result=ground_timing([update],[{'id':'m','text':'2026-11-03 or 2026-11-04'}],'2026-10-25')
+    assert result[0]['value']['date'] is None
+    result=ground_timing([update],[{'id':'m','text':'Friday works'}],'2026-10-25')
+    assert result[0]['value']['date']=='2026-10-30'
+
+
+def test_public_planner_semantics_ignore_speaking_and_provenance_only_changes():
+    from copy import deepcopy
+    from app.logic.listening import new_template, semantic_signature
+    template=new_template('Dinner','Dining',members=('alice','bob'))
+    changed=deepcopy(template);changed['spoke']=['alice'];changed['sources']={'cuisine:group':'suggested'}
+    assert semantic_signature(template)==semantic_signature(changed)
+    changed['attendance']['alice']={'status':'going','condition':None}
+    assert semantic_signature(template)!=semantic_signature(changed)

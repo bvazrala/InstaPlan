@@ -30,7 +30,7 @@ class Extraction(BaseModel):
 def _render(ctx: GroupContext) -> str:
     """The only way group data becomes prompt text."""
     ctx = require_group_context(ctx)
-    return json.dumps(ctx.model_dump(), ensure_ascii=False)
+    return json.dumps(ctx.model_dump(exclude_none=True), ensure_ascii=False)
 
 
 def detect_trip_intent(text: str) -> bool:

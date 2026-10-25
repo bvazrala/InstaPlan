@@ -85,6 +85,16 @@ test("planner creation, attributed listening, public perspectives, approval, ven
   await page.screenshot({path:info.outputPath("planner.png"),fullPage:true});
   await page.getByRole("button",{name:"Pick this venue"}).click();
   await expect(page.getByRole("button",{name:"Selected",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Revise plan",exact:true}).click();
+  await expect(page.getByRole("article",{name:"Austin Garden"})).toHaveCount(0);
+  if(info.project.name==="mobile") await page.getByRole("button",{name:"Close planner panel"}).click();
+  else await page.getByRole("button",{name:"Planner",exact:true}).first().click();
+  await page.getByRole("button",{name:"Yes, approve"}).click();
+  await page.getByRole("button",{name:"Maya",exact:true}).click();
+  await page.getByRole("button",{name:"Yes, approve"}).click();
+  await page.getByRole("button",{name:"Open planner",exact:true}).click();
+  await page.getByRole("button",{name:"Pick this venue"}).click();
+  await expect(page.getByRole("button",{name:"Selected",exact:true})).toBeVisible();
   await page.getByRole("link",{name:"Open comparison view"}).click();
   await expect(page).toHaveURL(/\/trip\/planner-one/);
   await expect(page.getByRole("heading",{name:"Friday dinner"})).toBeVisible();

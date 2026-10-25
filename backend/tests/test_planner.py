@@ -336,3 +336,62 @@ def test_exact_place_is_human_confirmed_and_not_replaced(client,world,monkeypatc
     p=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
     # The mocked provider returns another venue. It must not replace the approved target.
     assert p['recommendations']['venues']==[]
+
+
+def test_confirmed_city_searches_venues_within_city(client,world,monkeypatch):
+    p=ready(client,create(client,world))
+    monkeypatch.setattr('app.integrations.places.details',lambda *a,**k:{'id':'city-id','name':'Austin','address':'Austin, TX','url':None,'kind':'area'})
+    p=client.post(f"/trips/{p['tripId']}/planner/destination",headers=headers(),json={'revision':p['revision'],'placeId':'city-id','sessionToken':'abcdefghijklmnop'}).json()
+    queries=[]
+    def places(self,params):
+        queries.append(params)
+        return {'local_results':[{'title':'Cafe','place_id':'cafe'}]}
+    monkeypatch.setattr('app.integrations.serpapi_client.SerpApiClient.search',places)
+    p=vote(client,p).json();p=vote(client,p,'bob').json()
+    current=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    assert queries[0]['type']=='search' and 'Austin' in queries[0]['q']
+    assert current['recommendations']['venues'][0]['title']=='Cafe'
+
+
+def test_unified_travel_prices_only_three_going_members_and_preserves_exact_costs(client,world,monkeypatch):
+    from tests.test_logic import group_trip
+    from app.models import ChatMember
+    _,flights,lodging=group_trip.__wrapped__()
+    with Session(engine) as session:
+        session.add(ChatMember(chat_id='test-chat',user_id='dan'));session.commit()
+    p=create(client,world,'Travel')
+    p=edit(client,p,'where.search_area','New York City')
+    for uid in ('alice','bob','cara'):
+        p=edit(client,p,'attendance','going',uid)
+        p=edit(client,p,'when.flexibility',None,uid)
+    p=vote(client,p).json();p=vote(client,p,'bob').json()
+    assert p['status']=='approved' and p['pricedMembers']==['alice','bob','cara']
+    calls=[]
+    def collect(self,origins,destination,checkin,checkout,adults):
+        calls.append((sorted(origins),adults))
+        return {flights[uid][0].origin_id:flights[uid] for uid in flights},[lodging],False
+    monkeypatch.setattr('app.integrations.serpapi_client.SerpApiClient.collect',collect)
+    response=client.post(f"/trips/{p['tripId']}/planner/pricing",headers=headers(),json={'inputs':{
+        'destinations':[{'name':'New York City','airports':['JFK']}],
+        'checkin':'2026-11-05','checkout':'2026-11-09','origins':{'alice':'AUS','bob':'BOS','cara':'LAX'}}})
+    assert response.status_code==202,response.text
+    current=client.get(f"/trips/{p['tripId']}/planner",headers=headers()).json()
+    options=current['recommendations']['options']
+    assert calls==[(['AUS','BOS','LAX'],3)] and len(options)==1
+    assert options[0]['groupTotal']==700.01
+    assert sum(round(person['lodgingAllocation']*100) for person in options[0]['people'])==10001
+    assert 'dan' not in {person['id'] for person in options[0]['people']}
+    picked=client.post(f"/trips/{p['tripId']}/planner/pick",headers=headers(),json={'optionId':options[0]['id']})
+    assert picked.status_code==200,picked.text
+    assert picked.json()['status']=='picked'
+
+
+def test_manual_aliases_protect_the_canonical_field_and_blank_titles_are_rejected(client,world):
+    response=client.post('/chats/test-chat/planners',headers=headers(),json={'title':'   ','topic':'Travel'})
+    assert response.status_code==422
+    p=create(client,world,'Travel')
+    p=edit(client,p,'transportation','flight')
+    with Session(engine) as session:
+        planner=session.get(PlannerSession,p['tripId'])
+        assert planner.internal['field_versions']['trip_type:group']==p['revision']
+        assert planner.template['sources']['trip_type:group']=='manual'

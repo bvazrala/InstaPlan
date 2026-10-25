@@ -31,7 +31,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
   const live = useLiveOptions();
   const plannerState = usePlanner();
   const publicMe = plannerState?.speaker ?? me;
-  const stage = live?.trip?.stage ?? (live ? "idle" : demoStage);
+  const stage = plannerState ? (plannerState.planner?.status === 'picked' ? 'picked' : plannerState.planner?.status === 'approved' ? 'options' : plannerState.planner ? 'collecting' : 'idle') : live?.trip?.stage ?? (live ? "idle" : demoStage);
   const [draft, setDraft] = useState("");
   const [stored, setStored] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +168,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
       </div>
 
       <div className="shrink-0 px-3 pb-3 pt-1 md:px-5 md:pb-5 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
-        {chat.group && !live && stage === "idle" && (
+        {chat.group && !plannerState && !live && stage === "idle" && (
           <div className="no-scrollbar -mx-1 mb-2 flex gap-2 overflow-x-auto px-1">
             <button
               onClick={() => { setStage("collecting"); setPanelOpen(true); }}

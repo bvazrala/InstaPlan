@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from app.config import get_settings
 from app.logic.listening import (new_template, effective_attendance, attending, missing_fields,
-                                 semantic_signature, public_text, safe_updates)
+                                 semantic_signature, public_text, safe_updates, ground_timing, FIELD_ALIASES)
 from app.logic.generation import public_status, recent
 from app.models import (Trip, PlannerSession, PlannerApproval, ListeningBatch, Message,
                         OptionGeneration, TripOption, VenueRecommendation)
@@ -40,8 +40,11 @@ def create(session, chat_id, user_id, body):
     trip = Trip(chat_id=chat_id, created_by=user_id)
     session.add(trip)
     session.flush()
-    template = new_template(body.title, body.topic, body.location, initiator=user_id,
-                            members=tuple(sorted(member_ids(session, chat_id))))
+    try:
+        template = new_template(body.title, body.topic, body.location, initiator=user_id,
+                                members=tuple(sorted(member_ids(session, chat_id))))
+    except ValueError as exc:
+        raise HTTPException(422,str(exc)) from None
     if public_text(body.title + body.location) != body.title + body.location:
         raise HTTPException(422, "Keep financial details in your private check-in.")
     planner = PlannerSession(trip_id=trip.id, title=template['title'], topic=body.topic,
@@ -148,6 +151,8 @@ def snapshot(session, planner):
 
 
 def edit(session, planner, body, actor):
+    field = body.field.removeprefix('cluster.').removeprefix('template.')
+    body = body.model_copy(update={'field':FIELD_ALIASES.get(field,field)})
     if planner.status != 'collecting':
         raise HTTPException(409, "Revise the plan before changing its criteria.")
     if body.revision != planner.revision:
@@ -160,7 +165,7 @@ def edit(session, planner, body, actor):
              approval_revision=planner.approval_revision + (body.value != planner.threshold))
     else:
         if body.field == 'where.origins':
-            if not isinstance(body.value, str) or not 1 <= len(body.value.strip()) <= 120 or any(c.isdigit() for c in body.value):
+            if not isinstance(body.value, str) or not 1 <= len(body.value.strip()) <= 120 or any(c.isdigit() for c in body.value) or public_text(body.value) != body.value:
                 raise HTTPException(422, "Supply a coarse city or confirmed airport.")
             template['where']['origins'][actor] = body.value.strip()
         else:
@@ -293,7 +298,8 @@ def process_batch(engine, batch_id, lease):
         if batch.lease_id != lease or batch.status != 'processing' or planner.epoch != epoch or planner.status != 'collecting':
             return trip_id
         internal = deepcopy(planner.internal)
-        template, _ = safe_updates(planner.template, result['updates'], messages,
+        updates = ground_timing(result['updates'],messages,ctx.listener['today'])
+        template, _ = safe_updates(planner.template, updates, messages,
                   field_versions=internal.get('field_versions'), source_revisions=batch.source_revisions)
         for field, value in prediction.items() if isinstance(prediction,dict) else []:
             if field in CLUSTER_FIELDS[planner.topic] and not template['cluster'].get(field):

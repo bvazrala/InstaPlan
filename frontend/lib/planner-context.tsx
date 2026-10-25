@@ -13,15 +13,21 @@ type PlannerState = {
   pick: (id: string, acknowledgeCapacity?: boolean) => Promise<boolean>;
   destination: (placeId: string, sessionToken: string) => Promise<boolean>;
 };
+function message(cause: unknown, fallback: string) {
+  if (!(cause instanceof Error)) return fallback;
+  try { const detail = JSON.parse(cause.message).detail; return typeof detail === 'string' ? detail : 'Check the entered fields and try again.'; }
+  catch { return cause.message === 'Failed to fetch' ? 'Could not reach InstaPlan. Please retry.' : cause.message; }
+}
 const Context = createContext<PlannerState | null>(null);
 export function usePlanner() { return useContext(Context); }
-export function PlannerProvider({ children, chatId = "", tripId, me = "", members = {}, demoMode = false }: {
+function PlannerSessionProvider({ children, chatId = "", tripId, me = "", members = {}, demoMode = false }: {
   children: ReactNode; chatId?: string; tripId?: string; me?: string; members?: Record<string, Member>; demoMode?: boolean;
 }) {
   const [planner, setPlanner] = useState<Planner | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [speaker, setSpeaker] = useState(me);
   const [creating, setCreating] = useState(false);
   const mounted = useRef(true);
@@ -30,8 +36,8 @@ export function PlannerProvider({ children, chatId = "", tripId, me = "", member
     if (!chatId && !tripId) return;
     try {
       const next = await apiFetch<Planner | null>(tripId ? `/trips/${tripId}/planner` : `/chats/${chatId}/planner`);
-      if (mounted.current) { setPlanner(current => current && next && current.tripId === next.tripId && current.revision > next.revision ? current : next); }
-    } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : "Could not load planner"); }
+      if (mounted.current) { setPlanner(current => current && next && current.tripId === next.tripId && current.revision > next.revision ? current : next); setLoadError(null); }
+    } catch (cause) { if (mounted.current) setLoadError(message(cause,"Could not load planner")); }
     finally { if (mounted.current) setLoading(false); }
   }, [chatId, tripId]);
   useEffect(() => {
@@ -49,12 +55,12 @@ export function PlannerProvider({ children, chatId = "", tripId, me = "", member
       if (mounted.current) setPlanner(next);
       window.dispatchEvent(new Event("instaplan:trip"));
       return true;
-    } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : "Could not update plan"); return false; }
+    } catch (cause) { if (mounted.current) setError(message(cause,"Could not update plan")); return false; }
     finally { if (mounted.current) setBusy(false); }
   };
   const base = `/trips/${planner?.tripId}/planner`;
   const perspective = demoMode ? {demoSpeakerId:speaker || me} : {};
-  return <Context.Provider value={{planner, loading, busy, error, chatId, me, members, demoMode,
+  return <Context.Provider value={{planner, loading, busy, error: error ?? loadError, chatId, me, members, demoMode,
     speaker: speaker || me, setSpeaker, creating, setCreating, refresh,
     create: (title, topic, location) => request(`/chats/${chatId}/planners`, {title,topic,location,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone}),
     edit: (field,value) => request(base,{revision:planner?.revision,field,value,...perspective},"PATCH"),
@@ -63,4 +69,9 @@ export function PlannerProvider({ children, chatId = "", tripId, me = "", member
     pick: (id,acknowledgeCapacity=false) => request(`${base}/pick`,{optionId:id,acknowledgeCapacity}),
     destination: (placeId,sessionToken) => request(`${base}/destination`,{placeId,sessionToken,revision:planner?.revision}),
   }}>{children}</Context.Provider>;
+}
+
+
+export function PlannerProvider(props: Parameters<typeof PlannerSessionProvider>[0]) {
+  return <PlannerSessionProvider key={`${props.chatId ?? ''}:${props.tripId ?? ''}:${props.me ?? ''}`} {...props}/>;
 }

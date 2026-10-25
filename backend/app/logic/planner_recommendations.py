@@ -1,12 +1,12 @@
 """Public recommendation orchestration and private-safe venue evaluation."""
 import hashlib
 from datetime import UTC, datetime
+from urllib.parse import quote
 from sqlmodel import Session, select, delete
 from sqlalchemy import update
 from app.models import PlannerSession, Trip, OptionGeneration, VenueRecommendation, PrivatePrefs
-from app.logic.generation import start_run, finish_state, recent, revision, utcnow
+from app.logic.generation import finish_state, recent, revision, utcnow
 from app.logic.planning import PlanningInput, Constraint, Preference
-from app.logic.listening import public_text
 from app.schemas import VenueOut, PrivatePrefsData
 from app.privacy.crypto import decrypt_json
 from app.integrations.serpapi_client import SerpApiClient
@@ -37,7 +37,7 @@ def travel_inputs(planner):
             inputs.constraints.append(rule)
     transport = planner.template['cluster'].get('trip_type')
     lodging = planner.template['cluster'].get('accommodation')
-    if transport and transport != 'flight' or lodging and lodging != 'airbnb':
+    if transport and transport != 'flight' or lodging == 'none':
         inputs.constraints.append(Constraint(kind='unsupported'))
     inputs.preferences = [Preference(member_id=uid,category='Destination',value=value,score=1)
         for uid, values in planner.template['preferences'].items() if uid in planner.approved_members for value in values]
@@ -67,8 +67,9 @@ def generate_venues(session, trip, planner, run_id, client=None):
         finish_state(session,trip.id,run_id,'needs_input',{'message':'At least one going member is needed. Revise attendance.'})
         return False
     template = planner.template
-    exact = template['where']['destination']
-    location = template['where']['search_area'] or template.get('base_location')
+    selected = template['where']['destination']
+    exact = selected if selected and selected.get('kind','venue') == 'venue' else None
+    location = selected['name'] if selected else template['where']['search_area'] or template.get('base_location')
     cluster = template['cluster']
     query = (' '.join(cluster.get('cuisine',[]))+' restaurants '+str(cluster.get('meal_type',''))) if planner.topic == 'Dining' else cluster.get('activity_type','things to do')
     public_preferences = {uid:template['preferences'].get(uid,[]) for uid in planner.approved_members}
@@ -103,7 +104,9 @@ def generate_venues(session, trip, planner, run_id, client=None):
         if not place.title or identity in venues:
             continue
         venue_id = 'venue-'+hashlib.sha256(f'{trip.id}:{identity}'.encode()).hexdigest()[:24]
-        url = place.website_url or ('https://www.google.com/maps/search/?api=1&query='+__import__('urllib.parse',fromlist=['quote']).quote(place.title)+'&query_place_id='+place.place_id if place.place_id else None)
+        url = place.website_url
+        if not url and place.place_id:
+            url = 'https://www.google.com/maps/search/?api=1&query='+quote(place.title)+'&query_place_id='+quote(place.place_id)
         if url and not url.startswith(('https://','http://')):
             url = None
         evidence = [f'Provider category: {place.category}'] if place.category else []

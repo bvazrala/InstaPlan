@@ -13,7 +13,7 @@ function makeState(overrides={}) {return {me:"alice",speaker:"alice",members:{al
   planner:{tripId:"p",title:"Dinner",topic:"Dining",status:"collecting",pricedMembers:["alice"],pickedId:null,
     template:{where:{searchArea:"Austin"},when:{agreed:null}},
     poll:{ready:true,eligible:["alice","bob"],approvals:[],changes:[],required:1,threshold:.5},
-    generation:{status:"idle",runId:null},recommendations:{kind:"venues",venues:[]}},...overrides};}
+    generation:{status:"idle",runId:null as string|null},recommendations:{kind:"venues",venues:[]}},...overrides};}
 beforeEach(()=>{state.current=makeState();});
 it("keeps approval choices separate from attendance",()=>{
   const s=makeState();state.current=s;render(<PlannerApprovalCard/>);

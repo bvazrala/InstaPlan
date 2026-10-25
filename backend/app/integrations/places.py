@@ -40,7 +40,7 @@ def details(session, place_id, token):
             raise PlacesUnavailable('Place details are unavailable.')
         return {'id':result['id'],'name':result['displayName']['text'],
                 'address':result.get('formattedAddress'), 'url':result.get('googleMapsUri'),
-                'kind':'venue' if not any(t in result.get('types',[]) for t in ('locality','country','administrative_area_level_1')) else 'area'}
+                'kind':'venue' if not any(t in result.get('types',[]) for t in ('locality','country','administrative_area_level_1','administrative_area_level_2','neighborhood','postal_town','postal_code','sublocality')) else 'area'}
     from sqlmodel import Session
     with Session(session.get_bind()) as cache_session:
         return cached(cache_session,'google_places',{'place_id':place_id},fetch,ttl_seconds=1800)

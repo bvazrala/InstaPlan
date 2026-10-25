@@ -1,6 +1,6 @@
 # InstaPlan
 
-**A trip planner that lives inside the group chat.** It picks up what everyone wants as they talk, checks in privately with each person about budget and limits, and returns trip options that fit the whole group, without anyone seeing anyone else's private answers.
+**A group planner that lives inside the chat.** Start Dining, Travel, or Entertainment plans, collect public preferences as friends talk, approve the initial criteria, and choose a real recommendation. Private check-ins stay owner-only; travel budgets influence group options without revealing anyone's answers.
 
 Built at HackTX 2026 for the Meta, SerpApi and Capital One tracks, with a .tech domain from MLH.
 
@@ -32,12 +32,12 @@ InstaPlan does two things existing planners don't:
 
 ## How it works
 
-1. **Trip mention.** Someone types "we should do a trip to NYC" or taps *Plan a trip*. A live trip card appears in the chat.
-2. **Collect.** As the group chats, the assistant (Muse Spark) turns messages into facts on the trip card, and asks one tap-to-answer question when something required is missing.
-3. **Vote.** The group votes "We're going." A majority locks the trip in.
-4. **Private check-in.** The assistant checks in with each person in a private thread: budget, dietary and accessibility needs, private no-gos. A linked Capital One account (Nessie) suggests a safe-to-spend ceiling.
-5. **Options.** SerpApi prices flights, lodging and food per person. Options show per-person cost, travel time and a red-to-green group fit score, sortable by cheapest, fastest, balanced or fairest.
-6. **Pick and settle up.** The group picks an option, logs shared expenses, and pays each other back with one tap through Nessie.
+1. **Start a planner.** Choose **+ → Planner**, add a title and topic, and optionally name a city or search area.
+2. **Listen and correct.** Conversation fills the public template. Members can correct availability, attendance, preferences, and topic details. Inferred attendance and Suggested values are labeled.
+3. **Approve the initial plan.** Once required information is supplied and listening finishes, everyone who has not declined can vote. Approval thresholds are 40%, 50%, or 60%; approval votes are separate from attendance.
+4. **Keep private needs private.** Your own private check-in saves encrypted budget and requirements. The demo's public speaker switcher cannot change your private identity.
+5. **Get recommendations.** Dining and Entertainment use venue results with honest unknown costs and availability. Travel confirms exact dates and airports, then prices flights and shared lodging for going members only, with exact individual subtotals and private fairness ranking.
+6. **Select or revise.** Selection is persisted on the backend. **Revise plan** reopens listening and requires fresh approval before replacing recommendations. Existing expense and settlement features remain outside this unified planning phase.
 
 ## Tech stack
 

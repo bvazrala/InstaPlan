@@ -114,3 +114,18 @@ def test_demo_guard_errors_do_not_expose_configured_secrets():
     with pytest.raises(ValidationError) as caught:
         Settings(_env_file=None, app_env="production", demo_mode=True, private_data_key="SENSITIVE-CONFIG-KEY")
     assert "SENSITIVE-CONFIG-KEY" not in str(caught.value)
+
+
+def test_demo_public_perspective_cannot_select_private_identity(demo_client):
+    headers={'Authorization':f'Bearer {DEMO_TOKEN}'}
+    planner=demo_client.post(f'/chats/{DEMO_CHAT_ID}/planners',headers=headers,json={'title':'Dinner','topic':'Dining','location':'Austin'}).json()
+    message=demo_client.post(f'/chats/{DEMO_CHAT_ID}/messages',headers=headers,json={'text':'I am flexible','demoSpeakerId':'demo-maya'})
+    assert message.json()['from']=='demo-maya'
+    path=f"/trips/{planner['tripId']}/me/private"
+    saved=demo_client.put(path,headers=headers,json={'budgetCap':333,'demoSpeakerId':'demo-maya'})
+    assert saved.status_code==200
+    with Session(engine) as session:
+        assert session.get(PrivatePrefs,(planner['tripId'],DEMO_USER_ID)) is not None
+        assert session.get(PrivatePrefs,(planner['tripId'],'demo-maya')) is None
+    outsider=demo_client.post(f'/chats/{DEMO_CHAT_ID}/messages',headers=headers,json={'text':'Hello','demoSpeakerId':'outsider'})
+    assert outsider.status_code==403

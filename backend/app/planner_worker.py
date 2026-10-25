@@ -24,8 +24,11 @@ async def run_listener(engine):
     try:
         while True:
             if len(tasks) < get_settings().listener_concurrency:
-                with Session(engine) as session:
-                    claimed = claim_batch(session)
+                try:
+                    with Session(engine) as session:
+                        claimed = claim_batch(session)
+                except Exception:
+                    claimed = None  # A transient database failure must not stop the dispatcher.
                 if claimed:
                     task = asyncio.create_task(run(*claimed))
                     tasks.add(task)

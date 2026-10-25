@@ -115,6 +115,11 @@ class SerpApiClient:
     def properties(self, city: str, checkin: str, checkout: str, adults: int):
         params = {"engine": "google_hotels", "q": city, "check_in_date": checkin, "check_out_date": checkout,
                   "adults": adults, "vacation_rentals": True, "currency": "USD", "hl": "en"}
+        kind = getattr(self, 'lodging_kind', 'airbnb')
+        if kind != 'airbnb':
+            params.pop('vacation_rentals',None)
+        if kind == 'hostel':
+            params['q'] = city + ' hostels'
         return parse_hotel_properties(self.search(params))
 
     def collect(self, origins, destination, checkin, checkout, adults):

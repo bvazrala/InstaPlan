@@ -209,7 +209,7 @@ async def pick(trip_id:str,body:PickIn,user:CurrentUser=Depends(get_current_user
         trip=session.exec(select(Trip).where(Trip.id==trip_id).with_for_update()).one()
         from app.logic.generation import revision
         run=session.get(OptionGeneration,trip_id)
-        if not run or recent(run) or run.status!='ready' or run.published_revision!=revision(session,trip):
+        if not run or recent(run) or run.published_revision!=revision(session,trip):
             raise HTTPException(409,'Wait for recommendations for the current approved revision.')
         row=session.get(VenueRecommendation,body.option_id)
         if not row or row.trip_id!=trip_id or row.revision!=planner.approval_revision:

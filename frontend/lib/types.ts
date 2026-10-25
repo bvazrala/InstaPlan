@@ -70,7 +70,7 @@ export type Generation = {
   inputs: PlanningInputs | null; partial: boolean; optionCount: number;
 };
 
-export type Stage = "idle" | "collecting" | "voting" | "checkin" | "options" | "expenses" | "picked" | "finalize" | "settle";
+export type Stage = "idle" | "collecting" | "voting" | "confirmed" | "checkin" | "options" | "expenses" | "picked" | "finalize" | "settle";
 
 export type SortKey = "cheapest" | "fastest" | "balanced" | "fairest";
 

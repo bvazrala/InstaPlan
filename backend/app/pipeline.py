@@ -105,6 +105,13 @@ def generate_options(session: Session, trip: Trip, *, run_id: str | None = None,
     members = [member for member in ctx.members if member.id in planner.approved_members] if planner else [member for member in ctx.members if member.id not in declines]
     ids = {member.id for member in members}
     inputs = travel_inputs(planner) if planner else known_inputs(ctx)
+    if planner:
+        transport = planner.template['cluster'].get('trip_type')
+        accommodation = planner.template['cluster'].get('accommodation')
+        if transport and transport != 'flight' or accommodation == 'none':
+            finish_state(session, trip.id, run_id, 'needs_input', {'message':
+                'Live travel pricing supports flights and shared lodging. Revise transport or accommodation to price this plan.'})
+            return False
     if not planner and get_settings().muse_api_key:
         try:
             resolved = muse_group.resolve_planning(ctx)
@@ -150,6 +157,8 @@ def generate_options(session: Session, trip: Trip, *, run_id: str | None = None,
     if changed.rowcount != 1:
         return False
     client = client or SerpApiClient()
+    if planner:
+        client.lodging_kind = planner.template['cluster'].get('accommodation','airbnb')
     candidates = []
     partial = False
     members = sorted(members, key=lambda member: member.id)

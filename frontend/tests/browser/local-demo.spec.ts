@@ -12,7 +12,7 @@ test("local demo opens without a login and reaches the live planner", async ({ p
   await page.getByRole("button", { name: "Add to chat" }).click();
   await page.getByRole("button", { name: "Planner", exact:true }).last().click();
   await expect(page.getByRole("dialog",{name:"Start a planner"})).toBeVisible();
-  await expect(page.getByLabel("Topic",{exact:true})).toHaveValue("Dining");
+  await expect(page.getByRole("combobox",{name:"Topic",exact:true})).toHaveValue("Dining");
   expect(supabaseRequests).toEqual([]);
   await page.screenshot({ path: info.outputPath("local-demo.png"), fullPage: true });
 });

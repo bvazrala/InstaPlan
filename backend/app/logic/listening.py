@@ -272,6 +272,8 @@ def safe_updates(template: dict, updates: object, messages: list[dict], *, field
         uid = item.get("user_id")
         key = f"{field}:{uid or 'group'}"
         source = item.get("source_message_id")
+        if not isinstance(source,str) or uid is not None and not isinstance(uid,str):
+            continue
         if field in {"budget", "private_scores", "origin_location"}:
             continue
         if public_text(json.dumps(item.get("value"), ensure_ascii=False)) != json.dumps(item.get("value"), ensure_ascii=False):
@@ -280,3 +282,46 @@ def safe_updates(template: dict, updates: object, messages: list[dict], *, field
             continue
         filtered.append(item)
     return apply_updates(template, filtered, messages)
+
+
+def ground_timing(updates: object, messages: list[dict], today: str) -> list[dict]:
+    """Resolve simple relative dates against the plan's local day; never trust a guessed model date."""
+    from datetime import date, timedelta
+    local_day = date.fromisoformat(today)
+    sources = {m['id']:m.get('text','') for m in messages}
+    grounded = []
+    for update in updates[:30] if isinstance(updates,list) else []:
+        if not isinstance(update,dict):
+            continue
+        item = deepcopy(update)
+        if item.get('field') == 'when.agreed':
+            value = item.get('value')
+            if isinstance(value,str):
+                value = {'label':value,'date':None}
+            if isinstance(value,dict):
+                source_id = item.get('source_message_id')
+                source = sources.get(source_id,'').casefold() if isinstance(source_id,str) else ''
+                resolved = None
+                # Exact source dates must be unambiguous, not a date chosen from several alternatives.
+                explicit = re.findall(r'\b\d{4}-\d{2}-\d{2}\b',source)
+                if len(set(explicit)) == 1 and not re.search(r'\b(?:maybe|either|or)\b',source):
+                    try:
+                        resolved = date.fromisoformat(explicit[0])
+                    except ValueError:
+                        pass
+                elif not explicit and not re.search(r'\b(?:maybe|either|sometime|or)\b',source):
+                    if re.search(r'\btomorrow\b',source):
+                        resolved = local_day + timedelta(days=1)
+                    elif re.search(r'\b(?:today|tonight)\b',source):
+                        resolved = local_day
+                    else:
+                        days = [i for i,day in enumerate(WEEKDAYS) if re.search(r'\b'+day+r'\b',source)]
+                        if len(days) == 1:
+                            delta = (days[0]-local_day.weekday()) % 7
+                            if 'next ' in source and delta == 0:
+                                delta = 7
+                            resolved = local_day + timedelta(days=delta)
+                value['date'] = resolved.isoformat() if resolved else None
+                item['value'] = value
+        grounded.append(item)
+    return grounded

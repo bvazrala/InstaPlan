@@ -7,7 +7,8 @@ from cryptography.fernet import Fernet
 # Tests drop and recreate every table, so they never read DATABASE_URL. To run them on a scratch Postgres,
 # set TEST_DATABASE_URL (never your Supabase database).
 os.environ.update(DATABASE_URL=os.environ.get("TEST_DATABASE_URL", "sqlite://"), APP_ENV="test", DEMO_MODE="false",
-                  PRIVATE_DATA_KEY=Fernet.generate_key().decode(), SUPABASE_URL="", MUSE_API_KEY="")
+                  PRIVATE_DATA_KEY=Fernet.generate_key().decode(), SUPABASE_URL="", MUSE_API_KEY="",
+                  SERPAPI_KEY="", GOOGLE_MAPS_API_KEY="", NESSIE_API_KEY="")
 
 import pytest
 from fastapi import Header

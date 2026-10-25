@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { TripProvider, useTrip } from "@/lib/trip-context";
 import { useIsDesktop } from "@/lib/use-desktop";
 import { PlannerProvider } from "@/lib/planner-context";
-import { LiveOptionsProvider } from "@/lib/live-options";
 import { apiFetch } from "@/lib/api";
 import { getClientSession, supabaseConfigured } from "@/lib/supabase";
 import type { Chat, ChatMessage, Member } from "@/lib/types";
@@ -76,7 +75,6 @@ function Shell() {
 
   return (
     <PlannerProvider key={chatId} chatId={chatId} members={Object.fromEntries((chat?.members??[]).map(id=>[id,members[id]]).filter(([,member])=>!!member))} me={me} demoMode={demoMode}>
-    <LiveOptionsProvider key={chatId} chatId={chatId} members={members} me={me}>
     <div className="flex h-dvh flex-col">
     {demoMode && <div role="status" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs text-amber-900">Local demo · sample people · saved on this computer</div>}
     <div className="flex min-h-0 flex-1 bg-white text-foreground">
@@ -96,7 +94,6 @@ function Shell() {
       {!desktop && chat?.group && <MobileSheet />}
     </div>
     </div>
-    </LiveOptionsProvider>
     </PlannerProvider>
   );
 }
