@@ -106,7 +106,27 @@ instaplan/
 
 ## Getting started
 
-**You need:** Node 20.9+, Python 3.11+, and a Supabase project for authenticated chat: follow [docs/supabase-setup.md](docs/supabase-setup.md). The frontend does not substitute demo chat data when authentication is unavailable.
+**You need:** Node 22.13+ and Python 3.11+. Use local demo mode below to work without Supabase, or configure authenticated chat with [docs/supabase-setup.md](docs/supabase-setup.md).
+
+### Local demo without login
+
+In `backend/.env`, set `APP_ENV=dev` and `DEMO_MODE=true`, then start the backend
+from `backend/` and the frontend from `frontend/` using the commands below. Open
+[localhost:3000](http://localhost:3000); no username, password or Supabase project is
+needed. The browser discovers this mode from the backend, including WebSocket access.
+
+Demo mode uses the fixed Jordan identity, four synthetic group members, and a
+ready-to-price New York trip with different departure airports. Data persists in
+`backend/instaplan-demo.db`, isolated from `DATABASE_URL` and your existing database.
+No Supabase users are created or contacted. Membership checks and owner-only private
+routes remain enforced. The mode is rejected outside `APP_ENV=dev`, accepts only
+loopback clients/trusted browser origins, and must be served on 127.0.0.1.
+
+Muse and SerpApi remain real optional integrations using backend keys. Starting the
+demo makes no paid requests; click **Generate options** to request live prices.
+To restore normal Supabase authentication, set `DEMO_MODE=false` and restart the
+backend, then reload the browser. Your original database URL and Supabase settings
+are preserved. An unavailable backend does not silently enable demo sessions.
 
 ### Backend
 
@@ -128,7 +148,7 @@ cd frontend
 npm install
 cp .env.example .env.local
 npm run dev                        # http://localhost:3000
-npm run lint && npm run build      # run before every merge
+npm test && npm run lint && npm run build # run before every merge
 ```
 
 ### Keys checklist
@@ -191,8 +211,8 @@ Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/ar
 | Private check-in thread | R9, R22 | Done (Muse, private side); start it on lock-in | Show as a private thread, wire |
 | Final-touches summary | R10 | To do | To do |
 | Nessie budget suggestion | R11 | Done | Wire |
-| Generate options (SerpApi) | R12 | To do: `pipeline.generate_options` lists the steps | Wire |
-| Sort and fit colors | R13, R14 | Logic done (`logic/fit.py`, `logic/ranking.py`) | Done |
+| Generate options (SerpApi) | R12 | Implemented: bounded multi-origin pricing, fit, ranking and background generation; live-key smoke pending | Live cards, comparison and picking |
+| Sort and fit colors | R13, R14 | Four strategies, hard-constraint evaluation and privacy-safe fit | Live local sorts, exact allocations and unverified-state labels |
 | Pick an option | R15 | Done | Wire |
 | Tweak in plain words | R16 | To do | Input exists |
 | Settle up through Nessie | R17 | Done | Wire |
@@ -234,3 +254,13 @@ Deploy the backend on day one, not the last hour: WebSockets need a persistent s
 ---
 
 The frontend UI started as the original InstaPlan prototype and was reorganized into this structure.
+
+## Unified planner development flow
+
+In the local demo, open a group chat and choose **+ → Planner**. Name the plan and choose Dining, Travel, or Entertainment. The four-person switcher changes public message attribution and the public fields being edited; your private account never changes. There is no automatically approved seeded trip.
+
+Conversation updates a persisted public template. Members can correct attendance and availability, approve the initial criteria, see real recommendations and pick a saved result. Travel asks for exact flight dates and confirmed airports after initial approval. **Revise plan** requires fresh approval. Venue costs, ticket availability and future opening hours are explicit unknowns; flight/lodging options retain exact participant allocations and private fairness evaluation.
+
+The normal application contains useful listening and recovery states. Raw model traces and diagnostics remain in `backend/scripts/listening_lab`, which is not imported by production code. Planner sessions, revision-scoped approvals, durable listening batches and venue results are created through the existing startup table/RLS mechanism. Existing trip history is preserved.
+
+Optional Places picking uses server-only `GOOGLE_MAPS_API_KEY`; missing provider keys show unavailable states. Tests mock providers and do not need keys or make paid requests. See `docs/api-contract.md` for the unified API and privacy boundary.

@@ -18,6 +18,7 @@ The agreement between `frontend/` and `backend/`. Change it, `backend/app/schema
 | GET | `/chats/{chatId}/messages` | | `Message[]` | R21 |
 | POST | `/chats/{chatId}/messages` | `{ text }` | `Message` | R21 |
 | POST | `/chats/{chatId}/trips` | | `Trip` | R1 |
+| GET | `/chats/{chatId}/trips/active` | | `Trip or null` | R12 |
 | GET | `/trips/{tripId}` | | `Trip` | |
 | POST | `/trips/{tripId}/stage` | `{ stage }` | `Trip` | |
 | GET | `/trips/{tripId}/facts` | | `Fact[]` | R3, R4 |
@@ -25,8 +26,9 @@ The agreement between `frontend/` and `backend/`. Change it, `backend/app/schema
 | DELETE | `/trips/{tripId}/facts/{factId}` | | 204 | R5 |
 | POST | `/trips/{tripId}/vote` | `{ going }` | `Trip` | R8 |
 | GET | `/trips/{tripId}/options` | | `Option[]` | R12–R14 |
-| POST | `/trips/{tripId}/options/generate` | | 202 | R12 |
-| POST | `/trips/{tripId}/pick` | `{ optionId }` | `Trip` | R15 |
+| POST | `/trips/{tripId}/options/generate` | optional `{ inputs: PlanningInput }` | 202 `Generation` | R12 |
+| GET | `/trips/{tripId}/options/status` | | `Generation` | R12 |
+| POST | `/trips/{tripId}/pick` | `{ optionId, acknowledgeCapacity?: boolean }` | `Trip` | R15 |
 | GET | `/trips/{tripId}/expenses` | | `Expense[]` | R17 |
 | POST | `/trips/{tripId}/expenses` | `{ description, amount }` | `Expense` | R17 |
 | GET | `/trips/{tripId}/transfers` | | `Transfer[]` | R17 |
@@ -72,12 +74,129 @@ type Trip     = { id: string; chatId: string; stage: Stage; pickedOptionId: stri
                   yesVotes: number; memberCount: number; checkinsDone: number /* a count, never who */ };
 type Fact     = { id: string; field: string; value: string; by: string | null; src: string | null; required: boolean };
 type Option   = { id: string; title: string; place: string; dates: string; nights: number; lodging: string;
-                  lodgingShare: number; daily: number; fit: number; certainty: string; cats: Record<Category, number>;
+                  lodgingShare: number; daily: number; fit: number; certainty: string; cats: Record<Category, number | null>;
                   fairestRank: number /* never the burden ratio */; people: TravelLeg[]; hue: number;
-                  listingUrl?: string; pricedAt?: string };
+                  listingUrl?: string | null; pricedAt?: string | null;
+                  currency: string; groupTotal: number | null; lodgingTotal: number | null;
+                  maxTravelHours: number | null; durationBasis: "round_trip";
+                  priceCoverage: "quoted_with_taxes" | "estimated_before_taxes" | "missing" | "unknown";
+                  feasibility: "feasible" | "unverified" | "infeasible"; pickEligible: boolean;
+                  capacityAckRequired: boolean; warnings: string[]; costScope: "flights_and_lodging" };
+type TravelLeg = { id: string; origin: string; mode: "Flight" | "Drive";
+                   hours: number | null; cost: number | null;
+                   lodgingAllocation?: number | null; subtotal?: number | null };
+type PlanningInput = { destinations: {name: string; airports: string[]; sourceFactIds?: string[]}[];
+                      checkin?: string | null; checkout?: string | null; origins?: Record<string, string> };
+type Generation = { status: "idle" | "resolving" | "generating" | "needs_input" | "ready" | "failed";
+                    runId: string | null; message: string | null; missing: string[];
+                    inputs: PlanningInput | null; partial: boolean; optionCount: number };
 type PrivatePrefs = { budgetCap: number | null; dietary: string[]; accessibility: string[]; noGos: string;
                       privateScores: Record<string, number> /* -2..+2 */ };
 type Stage    = "collecting" | "voting" | "checkin" | "options" | "picked" | "settle";
 ```
 
 The frontend `Stage` adds `"idle"` for "no trip yet".
+
+## Live option generation
+
+Generation is allowed during `checkin` and `options`. A POST returns 202 immediately;
+poll status while work runs. Requests reuse an active run for at most five minutes.
+A stale run appears failed and can be retried. The default total HTTP request limit
+is 100 (including retries), concurrency is four, and provider work stops scheduling
+after 270 seconds. A restarted process does not automatically resume a lost run.
+
+`needs_input` returns missing public search fields and the public resolved inputs.
+Correct dates, destinations or participant airport codes by resubmitting `inputs`.
+Corrections do not replace server-side hard constraints or preference scores. They
+are retained for subsequent searches while the input revision remains unchanged.
+No private preferences, private revisions, rejected-member reasons or budgets are
+included in public inputs/status. Underlying private changes invalidate old options
+without explaining which member or value changed.
+
+Successful publication atomically replaces options and changes the trip to `options`.
+An empty successful search is `ready` with optionCount zero. Provider failure preserves
+the previous options. Partial success is `ready` with partial=true. `options.ready`
+is emitted only after commit; refresh on reconnect/focus and poll as a fallback.
+
+`groupTotal` is the authoritative flights-plus-shared-lodging subtotal. Individual
+`lodgingAllocation` values sum to `lodgingTotal` exactly, including remainder cents;
+`subtotal` is the authoritative individual flight-plus-lodging amount. `lodgingShare`
+is a legacy average only. `daily` is zero for this flow: meals, activities and ground
+travel are excluded, not priced at zero. All live hours are ROUND-TRIP elapsed hours,
+including layovers. Unknown measurements remain null. `pricedAt` comes from provider
+retrieval times, never option insertion time. Category scores without evidence for
+an offered component (Food and Activities) are null and displayed as not evaluated.
+
+All four sorts apply to the same filtered set. Balanced min-max normalizes group
+cost and maximum round-trip duration, with weight 0.5 by default (0=time, 1=cost).
+Ties use option IDs. Fairest minimizes the largest burden against submitted ceilings,
+then group cost, then ID. Only a fairest ordinal leaves the server. Missing ceilings
+are unconstrained, zero ceilings reject positive costs, and groups smaller than three
+ignore private budgets entirely. Without eligible budgets Fairest falls back to cheapest.
+
+A capacity-only uncertainty is selectable when pickEligible=true and the pick request
+includes acknowledgeCapacity=true. Other unverified hard requirements cannot be
+acknowledged away. Known conflicts are excluded. The server also rejects picking
+while a run is active or when the published inputs have changed. Picking persists
+the option and transitions to `picked`; explicitly return to `options` before
+regenerating. Existing saved/fixture option fields remain readable, but older options
+without verification metadata require regeneration before selection.
+
+The generation-state table is new and created by normal application startup, with
+the same RLS lockdown as every other table. No existing tables are dropped or altered.
+
+
+## Explicit local demo sessions
+
+`DEMO_MODE=true` with `APP_ENV=dev` selects the isolated local SQLite demo database
+and seeds synthetic group members plus a ready-to-price trip on startup. This mode
+never connects to the configured PostgreSQL database and does not create Supabase
+Auth users. Normal authentication remains the default when the flag is absent/false.
+
+`GET /health` additionally returns `demoMode: boolean` and `demoUserId: string | null`.
+A frontend on localhost/127.0.0.1 with a local backend uses this declaration to select
+the fixed `demo-you` identity. REST requests and the first WebSocket message still
+carry a bearer token (`instaplan-local-demo`, a public development marker, not a secret).
+This token is rejected when demo mode is disabled. The caller cannot choose another
+user ID. Demo HTTP/WebSocket access is restricted to loopback clients and trusted
+browser origins; all membership and private-owner checks continue to apply.
+The UI visibly labels the local demo. Refresh the browser after changing modes.
+
+## Unified planner (Dining, Travel, Entertainment)
+
+New chats start with **+ → Planner**. Creation needs a title, topic and browser IANA timezone; location is optional. An initiator has no ownership privilege. Existing travel endpoints remain available for legacy trips; unified planners use these routes instead. Every operation checks current chat/trip membership.
+
+| Method | Path | Request | Response |
+| --- | --- | --- | --- |
+| POST | `/chats/{chatId}/planners` | `{title, topic, location?, timezone}` | 201 `Planner` |
+| GET | `/chats/{chatId}/planner` | | latest `Planner` or null |
+| GET | `/trips/{tripId}/planner` | | `Planner` |
+| PATCH | `/trips/{tripId}/planner` | `{revision, field, value, demoSpeakerId?}` | `Planner` |
+| POST | `/trips/{tripId}/planner/approve` | `{revision: approvalRevision, approve, demoSpeakerId?}` | `Planner` |
+| POST | `/trips/{tripId}/planner/revise` | | `Planner` |
+| POST | `/trips/{tripId}/planner/retry` | | 202 `Planner` |
+| POST | `/trips/{tripId}/planner/pricing` | `{inputs: PlanningInput}` | 202 `Planner` |
+| POST | `/trips/{tripId}/planner/places` | `{query, sessionToken}` | `[{id,label}]` |
+| POST | `/trips/{tripId}/planner/destination` | `{revision, placeId, sessionToken}` | `Planner` |
+| POST | `/trips/{tripId}/planner/pick` | `{optionId, acknowledgeCapacity?}` | `Planner` |
+| PUT | `/trips/{tripId}/me/origin` | `{latitude, longitude, label}` | `{label}` (owner only) |
+
+`Planner` contains `tripId`, `title`, `topic`, `timezone`, optimistic `revision`, `approvalRevision`, `status` (`collecting`, `approved`, `picked`), typed `template`, effective `attendance`, `poll`, `listening`, `missing`, `generation`, `recommendations`, `pricedMembers`, `pickedId`, and `provenance` (public source-message ID → public speaker ID). It contains no internal notes, prompts, traces, model metrics or private assessments.
+
+`template` contains `when: {flexibility, agreed}`, `where: {destination, destinationHint, searchArea, origins}`, `preferences`, `hardConstraints`, `cluster`, `sources`, title and topic. Member maps use actual member IDs. Explicit flexible availability is `null` **with the member key present**; an absent key means missing. An agreed time is `{label,date}`; unresolved dates remain null. `where.origins` is a coarse, manually supplied city or confirmed airport label, never device coordinates. `sources` values are message IDs, `manual`, or `suggested`. Origins are omitted from listener model context. Topic cluster fields retain their extraction names: Dining `meal_type,cuisine`; Travel `trip_type,accommodation`; Entertainment `activity_type`.
+
+Editable field paths: `when.agreed`, `when.flexibility`, `where.search_area`, `where.origins`, `attendance`, `preferences`, `hard_constraints`, the active topic's cluster fields, and `threshold`. Personal edits apply to the caller. `demoSpeakerId` is allowed only for public messages/edits/votes in the loopback-only four-person demo chat. It never selects a private identity, including when passed to an owner-only route.
+
+`poll` contains `eligible`, `approvals`, `changes`, `required`, `threshold`, `ready`. Eligible voters include conditional members and exclude explicit declines. Speaking implies going unless explicit attendance overrides it; silent members remain conditional. Readiness requires a location and availability from going members, or agreed timing. Optional topic fields never block readiness. Voting waits until queued listening finishes. Thresholds are 0.4, 0.5, 0.6, default 0.5; required approvals are `max(1, ceil(threshold * eligible.length))`. A change vote never declines attendance. Meaningful criteria, explicit attendance, membership and threshold changes invalidate votes; provenance, processing, notes and speaking alone do not. Approval freezes criteria and going-member pricing roster. Exact flight dates and airports can be confirmed afterward without inventing them; changed destination or an agreed exact date requires revision.
+
+`listening` is `idle`, `queued`, `listening`, or `failed`. Batches are durable, debounced 900 ms, contain at most six source messages and use four preceding/two following context messages. Only batch messages support changes. Manual edits win against older sources; obsolete epochs cannot apply. Interrupted leases are recovered after 90 seconds. Retry requeues failed work. Suggested topic values only fill empty fields and yield to explicit corrections.
+
+`recommendations` is discriminated by `kind`: `{kind:"travel", options: Option[]}` reuses the existing exact-cost travel contract; `{kind:"venues", venues: Venue[]}` carries venue identity, title, address, provider-supported rating, nullable `priceLevel`, nullable safe link, provider, retrieval time, nullable aggregate public `fit`, evidence, warnings, and `pickEligible`. Venue price levels are not dollar amounts. Future opening hours, exact costs, tickets, dietary/accessibility suitability remain unknown unless supported. Unverified hard requirements block server-side picking. Venue fit uses only provider-reported names/categories and public preferences; unknown fit remains null. Venue order is fit/rating with stable IDs; travel retains all four cost/time/fairness sorts.
+
+Generation uses the existing five-minute lease and atomic publication, bound to the approved revision, frozen participants, actual membership, confirmed pricing inputs and an opaque private revision. Errors preserve prior rows/results; successful empty searches publish an empty set. Picking is blocked while a generation is active or approval is invalid. Unknown lodging capacity requires explicit acknowledgment; other unverified hard requirements cannot be acknowledged away.
+
+`planner.updated` events carry only `{type,tripId}`; clients refetch snapshots. `options.ready` is emitted only after publication commits. Clients poll every 1.5 seconds and refresh on reconnect/online. Ordinary public messages continue after approval without changing frozen criteria. Revise reopens listening and requires approval before replacement recommendations. No group option stores private ceilings or burden ratios.
+
+Precise coordinates live only in the caller's encrypted `PrivatePrefs.originLocation`, read through `/me/private`. The public origin endpoint response contains only the coarse label. Device coordinates never become a flight airport. Public demo perspectives do not change `/me/` authentication.
+
+Provider configuration: `MUSE_API_KEY` for listening, `SERPAPI_KEY` for live recommendations, optional server-only `GOOGLE_MAPS_API_KEY` for the exact Places picker. Missing keys yield explicit unavailable/retry states; no fabricated recommendations or model output. Places Autocomplete uses session tokens and explicit field masks, followed by human-confirmed Place Details. Paid provider smoke checks remain opt-in. The standalone listening lab is unchanged and retains its separate diagnostics.

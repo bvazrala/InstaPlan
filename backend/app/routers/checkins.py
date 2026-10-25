@@ -20,7 +20,7 @@ from app.privacy.access import require_trip_member
 from app.privacy.context import PrivateContext
 from app.privacy.crypto import decrypt_json, decrypt_text, encrypt_json, encrypt_text
 from app.realtime import hub
-from app.schemas import BudgetSuggestionOut, CheckInMessageOut, PrivatePrefsData, SendMessageIn
+from app.schemas import BudgetSuggestionOut, CheckInMessageOut, PrivatePrefsData, PrivateOrigin, SendMessageIn
 
 router = APIRouter(prefix="/trips/{trip_id}/me", tags=["private (owner only)"])
 
@@ -112,3 +112,22 @@ def my_budget_suggestion(trip_id: str, user: CurrentUser = Depends(get_current_u
            if b.get("status") in ("pending", "recurring") and str(b.get("payment_date", "")) <= horizon]
     ceiling = safe_to_spend(float(checking.get("balance", 0)), due)
     return BudgetSuggestionOut(amount=ceiling.amount, reason=default_reason(ceiling))
+
+
+@router.put("/origin")
+async def save_my_origin(trip_id: str, body: PrivateOrigin,
+                         user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)):
+    trip = require_trip_member(session, trip_id, user)
+    from app.logic.planner_service import require_planner, edit
+    from app.logic.listening import public_text
+    from app.schemas import PlannerEdit
+    planner = require_planner(session, trip_id)
+    if public_text(body.label) != body.label or any(char.isdigit() for char in body.label):
+        raise HTTPException(422, "Share a city label without an address or coordinates.")
+    # Only the coarse label crosses the public boundary. Coordinates stay encrypted and owner-only.
+    prefs = load_prefs(session, trip_id, user.id)
+    prefs.origin_location = body
+    edit(session, planner, PlannerEdit(revision=planner.revision,field='where.origins',value=body.label), user.id)
+    save_prefs(session, trip_id, user.id, prefs)
+    await hub.to_chat(trip.chat_id, {'type':'planner.updated','tripId':trip_id})
+    return {'label':body.label}

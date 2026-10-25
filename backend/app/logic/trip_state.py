@@ -6,6 +6,7 @@ from enum import StrEnum
 class Stage(StrEnum):
     COLLECTING = "collecting"
     VOTING = "voting"
+    CONFIRMED = "confirmed"
     CHECKIN = "checkin"
     OPTIONS = "options"
     PICKED = "picked"
@@ -15,6 +16,7 @@ class Stage(StrEnum):
 ALLOWED: dict[Stage, set[Stage]] = {
     Stage.COLLECTING: {Stage.VOTING},
     Stage.VOTING: {Stage.COLLECTING, Stage.CHECKIN},  # "no" returns to collecting
+    Stage.CONFIRMED: {Stage.COLLECTING, Stage.OPTIONS},
     Stage.CHECKIN: {Stage.OPTIONS},
     Stage.OPTIONS: {Stage.PICKED},
     Stage.PICKED: {Stage.OPTIONS, Stage.SETTLE},  # "tweak" re-runs options

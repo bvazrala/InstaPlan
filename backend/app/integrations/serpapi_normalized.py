@@ -251,7 +251,7 @@ class FlightOptionComplete(BaseModel):
     booking_token: str | None = None
     quoted_price_usd: float | None = None  # stage-2 quoted full fare
     currency: str | None = None
-    total_duration_min: int | None = None
+    total_duration_min: int | None = None  # elapsed return only; unknown for mixed-direction payloads
     retrieved_at: datetime | None = None
 
     def signature(self) -> str:
@@ -263,6 +263,10 @@ class FlightOptionComplete(BaseModel):
                   retrieved_at: datetime | None = None) -> FlightOptionComplete:
         legs_raw = src.get("flights", []) if isinstance(src.get("flights"), list) else []
         return_flight: list[FlightLeg] = []
+        # Return-only connecting chains have no direction tags in real responses.
+        route_start = (legs_raw[0].get("departure_airport") or {}).get("id") if legs_raw else None
+        route_end = (legs_raw[-1].get("arrival_airport") or {}).get("id") if legs_raw else None
+        return_only = route_start == outbound.destination_id and route_end == outbound.origin_id
         for d in legs_raw:
             if not isinstance(d, dict):
                 continue
@@ -272,6 +276,8 @@ class FlightOptionComplete(BaseModel):
                 return_flight.append(leg)
             elif direction == "outbound":
                 continue  # outbound belongs to stage-1; stage-2 is the return-selection stage
+            elif return_only:
+                return_flight.append(leg)
             else:
                 # No direction: classify by stage-1 context (a leg back to the origin is the return).
                 dest_is_origin = bool(outbound.origin_id) and leg.arrival_airport_id == outbound.origin_id
@@ -288,7 +294,9 @@ class FlightOptionComplete(BaseModel):
             booking_token=_safe_str(src.get("booking_token")),
             quoted_price_usd=_safe_float(src.get("price")),
             currency=_safe_str(src.get("currency")) or outbound.currency,
-            total_duration_min=_safe_int(src.get("total_duration")),
+            # A mixed-direction row's total cannot safely be assigned to the return.
+            total_duration_min=_safe_int(src.get("total_duration"))
+            if return_flight and len(return_flight) == len(legs_raw) else None,
             retrieved_at=retrieved_at,
         )
 
@@ -323,7 +331,10 @@ def build_round_trip(outbound: FlightOptionStage1, choice: FlightOptionComplete)
         outbound_flight=list(outbound.flights),
         return_flight=list(choice.return_flight),
         outbound_duration_min=outbound.total_duration_min,
-        inbound_duration_min=choice.return_flight[0].duration_min if choice.return_flight else None,
+        # Stage-2 elapsed duration includes every return leg and layover. A single
+        # leg is a safe fallback only for a nonstop return.
+        inbound_duration_min=choice.total_duration_min if choice.total_duration_min is not None else (
+            choice.return_flight[0].duration_min if len(choice.return_flight) == 1 else None),
         total_price_usd=choice.quoted_price_usd if choice.quoted_price_usd is not None else outbound.price_usd,
         currency=choice.currency or outbound.currency or "USD",
         booking_token=choice.booking_token,
@@ -400,14 +411,14 @@ class Property(BaseModel):
         """True when total_rate.after_taxes_fees or extracted_ variant is populated."""
         if self.total_rate is None:
             return False
-        return bool(self.total_rate.extracted_after_taxes_fees or self.total_rate.after_taxes_fees)
+        return self.total_rate.extracted_after_taxes_fees is not None or self.total_rate.after_taxes_fees is not None
 
     @property
     def has_per_night_price(self) -> bool:
         """True when rate_per_night has a recognizable price field."""
         if self.rate_per_night is None:
             return False
-        return bool(self.rate_per_night.extracted_before_taxes_fees or self.rate_per_night.display_price)
+        return self.rate_per_night.extracted_before_taxes_fees is not None or self.rate_per_night.display_price is not None
 
     @computed_field
     @property
@@ -674,6 +685,8 @@ def parse_hotel_properties(raw: dict[str, Any]) -> list[Property]:
     for prop_row in (raw.get("properties") or []):
         if isinstance(prop_row, dict):
             p = Property.from_dict(prop_row, engine="google_hotels", retrieved_at=retrieved_at)
+            if p.currency is None:
+                p.currency = _safe_str((raw.get("search_parameters") or {}).get("currency"))
             props.append(p)
     return props
 

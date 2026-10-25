@@ -5,8 +5,12 @@ import { ArrowLeft, CornerUpLeft, Image as ImageIcon, MapPin, Mic, Phone, Smile,
 import { apiFetch } from "@/lib/api";
 import { connectChat } from "@/lib/socket";
 import type { Chat, ChatMessage, Member, Message } from "@/lib/types";
+import { useLiveOptions } from "@/lib/live-options";
 import { useTrip } from "@/lib/trip-context";
 import { Avatar, ChatAvatar } from "./Avatar";
+import { usePlanner } from "@/lib/planner-context";
+import { PlannerEntry, PublicPerspective } from "@/components/planner/PlannerEntry";
+import { PlannerApprovalCard } from "@/components/planner/PlannerPanel";
 import TripChatCard from "@/components/trip/TripChatCard";
 import MessageBubble, { type BubblePos } from "./MessageBubble";
 import { STAGE_LABEL } from "./chat-meta";
@@ -23,7 +27,11 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
   chat: Chat; me: string; members: Record<string, Member>;
   onLatest: (chatId: string, message: ChatMessage) => void; onBack: () => void;
 }) {
-  const { stage, setStage, panelOpen, setPanelOpen } = useTrip();
+  const { stage: demoStage, setStage, panelOpen, setPanelOpen } = useTrip();
+  const live = useLiveOptions();
+  const plannerState = usePlanner();
+  const publicMe = plannerState?.speaker ?? me;
+  const stage = live?.trip?.stage ?? (live ? "idle" : demoStage);
   const [draft, setDraft] = useState("");
   const [stored, setStored] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +40,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
   const [reacted, setReacted] = useState<Record<string, boolean>>({});
   const endRef = useRef<HTMLDivElement>(null);
 
-  const messages: Message[] = stored.map((message) => ({ id: message.id, from: message.from === me ? "me" : message.from, kind: "text", text: message.text }));
+  const messages: Message[] = stored.map((message) => ({ id: message.id, from: message.from === publicMe ? "me" : message.from, kind: "text", text: message.text }));
   const seps: Record<number, string> = stored.length ? { 0: new Date(stored[0].sentAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) } : {};
   const lastMine = messages.at(-1)?.from === "me";
 
@@ -54,14 +62,18 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
     const subscribe = async () => {
       try {
         connection = await connectChat(chat.id, (event) => {
-          if (event.type !== "message.new" || cancelled) return;
+          if (cancelled) return;
+          if (event.type === "planner.updated" || event.type === "options.ready" || event.type === "trip.stage" || event.type === "fact.updated") {
+            window.dispatchEvent(new Event("instaplan:trip"));
+          }
+          if (event.type !== "message.new") return;
           setStored((current) => mergeMessages(current, [event.message]));
           onLatest(chat.id, event.message);
         }, () => {
           if (!cancelled) retry = setTimeout(() => void subscribe(), 1500);
         });
         if (cancelled) connection.close();
-        else await refresh();
+        else { await refresh(); window.dispatchEvent(new Event("instaplan:trip")); }
       } catch {
         if (!cancelled) retry = setTimeout(() => void subscribe(), 1500);
       }
@@ -77,7 +89,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
     const t = draft.trim();
     if (!t) return;
     try {
-      const message = await apiFetch<ChatMessage>(`/chats/${chat.id}/messages`, { method: "POST", body: JSON.stringify({ text: t }) });
+      const message = await apiFetch<ChatMessage>(`/chats/${chat.id}/messages`, { method: "POST", body: JSON.stringify({ text: t, ...(plannerState?.demoMode ? {demoSpeakerId: publicMe} : {}) }) });
       setStored((current) => mergeMessages(current, [message]));
       onLatest(chat.id, message);
       if (replyTo) setQuotes((q) => ({ ...q, [message.id]: { who: replyTo.who, text: replyTo.text } }));
@@ -112,11 +124,12 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
             aria-pressed={panelOpen}
             className={`flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition ${panelOpen ? "bg-brand text-white" : "bg-surface text-foreground hover:bg-neutral-100"}`}
           >
-            <MapPin size={15} /> {stage === "idle" ? "Plan trip" : "Trip"}
-            {stage !== "idle" && <span className="hidden font-normal opacity-80 sm:inline">· {STAGE_LABEL[stage]}</span>}
+            <MapPin size={15} /> {plannerState ? "Planner" : stage === "idle" ? "Plan trip" : "Trip"}
+            {!plannerState && stage !== "idle" && <span className="hidden font-normal opacity-80 sm:inline">· {STAGE_LABEL[stage]}</span>}
           </button>
         )}
       </header>
+      <PublicPerspective/>
 
 
       <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-8">
@@ -130,7 +143,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
               const pos: BubblePos = m.kind === "image" ? "single" : sameAsPrev ? (sameAsNext ? "middle" : "last") : sameAsNext ? "first" : "single";
               const showName = !mine && chat.group && !sameAsPrev;
               return (
-                <div key={m.id} className="animate-in-fade">
+                <div id={`message-${m.id}`} key={m.id} className="animate-in-fade">
                   {seps[i] && <p className="pb-3 pt-4 text-center text-xs font-medium text-muted">{seps[i]}</p>}
                   {!sameAsPrev && i > 0 && !seps[i] && <div className="h-2.5" />}
                   {showName && <p className="mb-0.5 ml-10 text-[11px] text-muted">{members[m.from]?.name ?? "Member"}</p>}
@@ -148,14 +161,14 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
                 </div>
               );
             })}
-            {chat.group && <TripChatCard />}
+            {chat.group && (plannerState ? plannerState.planner && <div className="my-3 max-w-md rounded-xl border border-line p-4"><p className="text-xs text-brand">{plannerState.planner.topic} planner</p><p className="font-semibold">{plannerState.planner.title}</p><p className="mt-1 text-xs text-muted">{plannerState.planner.status === 'picked' ? 'Plan selected' : plannerState.planner.status === 'approved' ? 'Initial plan approved' : plannerState.planner.listening === 'idle' ? 'The conversation builds your plan' : 'Listening to the conversation…'}</p><button className="mt-2 text-sm font-semibold text-brand" onClick={()=>setPanelOpen(true)}>Open planner</button><PlannerApprovalCard/></div> : <TripChatCard />)}
             {lastMine && <p className="pr-1 pt-1.5 text-right text-[11px] text-muted">Seen</p>}
         </div>
         <div ref={endRef} />
       </div>
 
       <div className="shrink-0 px-3 pb-3 pt-1 md:px-5 md:pb-5 [padding-bottom:max(0.75rem,env(safe-area-inset-bottom))]">
-        {chat.group && stage === "idle" && (
+        {chat.group && !live && stage === "idle" && (
           <div className="no-scrollbar -mx-1 mb-2 flex gap-2 overflow-x-auto px-1">
             <button
               onClick={() => { setStage("collecting"); setPanelOpen(true); }}
@@ -173,6 +186,7 @@ export default function ChatThread({ chat, me, members, onLatest, onBack }: {
           </div>
         )}
         <div className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-white pl-3 pr-1.5 transition focus-within:border-neutral-300">
+          {chat.group && <PlannerEntry/>}
           <Smile size={22} strokeWidth={1.75} className="text-foreground" />
           <input
             value={draft}

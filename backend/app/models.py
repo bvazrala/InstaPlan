@@ -122,3 +122,58 @@ class ApiCache(SQLModel, table=True):
     key: str = Field(primary_key=True)  # sha256 of provider + params
     response: dict[str, Any] = Field(sa_column=Column(JSON))
     fetched_at: datetime = Field(default_factory=_now)
+
+
+class OptionGeneration(SQLModel, table=True):
+    """Server-owned state. Public status projection excludes the revision fingerprint."""
+    trip_id: str = Field(foreign_key="trip.id", primary_key=True)
+    run_id: str = Field(default_factory=_id)
+    status: str = "idle"
+    revision: str = ""
+    published_revision: str = ""
+    started_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+    result: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class PlannerSession(SQLModel, table=True):
+    trip_id: str = Field(foreign_key="trip.id", primary_key=True)
+    title: str
+    topic: str
+    timezone: str = "UTC"
+    revision: int = 0
+    approval_revision: int = 0
+    epoch: int = 0
+    threshold: float = 0.5
+    status: str = "collecting"
+    template: dict[str, Any] = Field(sa_column=Column(JSON))
+    internal: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    approved_members: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
+class PlannerApproval(SQLModel, table=True):
+    trip_id: str = Field(foreign_key="trip.id", primary_key=True)
+    revision: int = Field(primary_key=True)
+    user_id: str = Field(foreign_key="user.id", primary_key=True)
+    approve: bool
+
+
+class ListeningBatch(SQLModel, table=True):
+    id: str = Field(default_factory=_id, primary_key=True)
+    trip_id: str = Field(foreign_key="trip.id", index=True)
+    epoch: int
+    message_ids: list[str] = Field(sa_column=Column(JSON))
+    source_revisions: dict[str, int] = Field(default_factory=dict, sa_column=Column(JSON))
+    status: str = "queued"
+    queued_at: datetime = Field(default_factory=_now)
+    started_at: datetime | None = None
+    lease_id: str | None = None
+
+
+class VenueRecommendation(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    trip_id: str = Field(foreign_key="trip.id", index=True)
+    revision: int
+    data: dict[str, Any] = Field(sa_column=Column(JSON))

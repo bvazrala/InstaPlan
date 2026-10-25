@@ -335,6 +335,15 @@ def main() -> int:
     check_only = "--check" in sys.argv
     print("InstaPlan seed" + (" (check only, nothing is written)" if check_only else ""))
     try:
+        from app.config import get_settings
+        if get_settings().demo_mode:
+            from app.db import engine, init_db
+            from app.demo import seed_local_demo
+            if not check_only:
+                init_db()
+                seed_local_demo(engine)
+            print("Local demo ready: no Supabase users or login required. Open http://localhost:3000")
+            return 0
         s, url = check_config()
         check_network(s, url)
         check_database(write=not check_only)

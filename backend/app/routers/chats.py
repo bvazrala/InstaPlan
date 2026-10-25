@@ -20,15 +20,24 @@ def message_out(m: Message) -> MessageOut:
     return MessageOut(id=m.id, from_=m.sender_id or "assistant", text=m.body, sent_at=m.sent_at)
 
 
-async def post_group_message(session: Session, chat_id: str, user: CurrentUser, text: str) -> MessageOut:
+async def post_group_message(session: Session, chat_id: str, user: CurrentUser, text: str, demo_speaker_id: str | None = None) -> MessageOut:
     """Shared by REST and WebSocket sends: store, broadcast, then run the pipeline in the background."""
-    msg = Message(chat_id=chat_id, sender_id=user.id, body=text)
+    from app.logic.planner_service import active, speaker, enqueue
+    actor = speaker(session, chat_id, user, demo_speaker_id)
+    msg = Message(chat_id=chat_id, sender_id=actor, body=text)
     session.add(msg)
+    session.flush()
+    planner = active(session, chat_id)
+    if planner:
+        enqueue(session, planner, msg)
     session.commit()
     session.refresh(msg)
     out = message_out(msg)
     await hub.to_chat(chat_id, {"type": "message.new", "message": out.model_dump(mode="json", by_alias=True)})
-    asyncio.create_task(on_group_message(chat_id, msg.id))
+    if not planner:
+        asyncio.create_task(on_group_message(chat_id, msg.id))
+    else:
+        await hub.to_chat(chat_id, {"type":"planner.updated","tripId":planner.trip_id})
     return out
 
 
@@ -56,4 +65,4 @@ def chat_messages(chat_id: str, user: CurrentUser = Depends(get_current_user), s
 async def send_message(chat_id: str, body: SendMessageIn, user: CurrentUser = Depends(get_current_user),
                        session: Session = Depends(get_session)):
     require_chat_member(session, chat_id, user)
-    return await post_group_message(session, chat_id, user, body.text)
+    return await post_group_message(session, chat_id, user, body.text, body.demo_speaker_id)

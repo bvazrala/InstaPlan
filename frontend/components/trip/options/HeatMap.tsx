@@ -18,7 +18,7 @@ export default function HeatMap({ options }: { options: Option[] }) {
               <td className="p-2.5 font-semibold">{o.title}</td>
               {CATEGORIES.map((c) => (
                 <td key={c} className="p-1.5">
-                  <div className="rounded-md py-2 text-center font-semibold" style={{ background: fitTint(o.cats[c]), color: fitColor(o.cats[c]) }}>{o.cats[c]}</div>
+                  <div className="rounded-md py-2 text-center font-semibold" style={o.cats[c] === null ? {} : { background: fitTint(o.cats[c]!), color: fitColor(o.cats[c]!) }}>{o.cats[c] ?? "Not evaluated"}</div>
                 </td>
               ))}
             </tr>

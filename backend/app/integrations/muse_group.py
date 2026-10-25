@@ -51,3 +51,24 @@ def write_nudge(ctx: GroupContext, missing_field: str) -> str:
     system = (PROMPTS / "group_nudge.md").read_text()
     data = ask_json(system, json.dumps({"context": json.loads(_render(ctx)), "missing_field": missing_field}))
     return str(data.get("question", f"Quick one: {missing_field}?"))
+
+
+def resolve_planning(ctx: GroupContext):
+    """Resolve public facts only; a model suggestion is still validated by the engine."""
+    from app.logic.planning import PlanningInput
+    from datetime import date
+    ctx = require_group_context(ctx)
+    system = (PROMPTS / "resolve_planning.md").read_text()
+    schema = json.dumps(PlanningInput.model_json_schema())
+    return PlanningInput.model_validate(ask_json(system + "\nJSON schema:\n" + schema,
+        json.dumps({"today": date.today().isoformat(), "context": json.loads(_render(ctx))})))
+
+
+def listen_planner(ctx: GroupContext) -> dict:
+    require_group_context(ctx)
+    return ask_json((PROMPTS / "planner_listen.md").read_text(encoding="utf-8"), _render(ctx))
+
+
+def predict_planner(ctx: GroupContext) -> dict:
+    require_group_context(ctx)
+    return ask_json((PROMPTS / "planner_predict.md").read_text(encoding="utf-8"), _render(ctx))

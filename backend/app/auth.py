@@ -5,7 +5,9 @@ from functools import lru_cache
 
 import httpx
 import jwt
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
+from ipaddress import ip_address
+from app.demo import DEMO_TOKEN, DEMO_USER_ID
 
 from app.config import get_settings
 
@@ -32,6 +34,10 @@ def verify_token(token: str) -> CurrentUser:
     """Projects on JWT signing keys: verify locally against the JWKS.
     Legacy HS256 projects: ask Supabase Auth, as Supabase recommends instead of sharing the secret."""
     settings = get_settings()
+    if settings.demo_mode:
+        if settings.app_env == "dev" and token == DEMO_TOKEN:
+            return CurrentUser(id=DEMO_USER_ID)
+        raise InvalidToken("Invalid local demo session")
     if not token or not settings.supabase_url:
         raise InvalidToken("missing token or Supabase not configured")
     try:
@@ -57,8 +63,23 @@ def verify_token(token: str) -> CurrentUser:
         raise InvalidToken(str(exc)) from exc
 
 
-def get_current_user(authorization: str = Header(default="")) -> CurrentUser:
+def require_demo_loopback(host: str | None, origin: str | None = None) -> None:
+    if not get_settings().demo_mode:
+        return
+    try:
+        local = ip_address(host or "").is_loopback
+    except ValueError:
+        local = False
+    if not local or (origin and origin not in {"http://localhost:3000", "http://127.0.0.1:3000", get_settings().frontend_origin}):
+        raise InvalidToken("Local demo sessions require a loopback client and trusted origin")
+
+
+def get_current_user(request: Request, authorization: str = Header(default="")) -> CurrentUser:
     """FastAPI dependency for every REST route."""
+    try:
+        require_demo_loopback(request.client.host if request.client else None, request.headers.get("origin"))
+    except InvalidToken:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Demo mode is available locally only") from None
     scheme, _, token = authorization.partition(" ")
     if scheme.lower() != "bearer":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing bearer token")

@@ -7,7 +7,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from fastapi.concurrency import run_in_threadpool
 from sqlmodel import Session
 
-from app.auth import CurrentUser, InvalidToken, verify_token
+from app.auth import CurrentUser, InvalidToken, require_demo_loopback, verify_token
 from app.db import engine
 from app.privacy.access import is_chat_member
 from app.realtime import hub
@@ -20,6 +20,7 @@ router = APIRouter(tags=["realtime"])
 async def chat_socket(ws: WebSocket, chat_id: str):
     await ws.accept()
     try:
+        require_demo_loopback(ws.client.host if ws.client else None, ws.headers.get("origin"))
         first = await asyncio.wait_for(ws.receive_json(), timeout=10)
         if first.get("type") != "auth":
             raise InvalidToken("first message must be auth")
@@ -41,7 +42,11 @@ async def chat_socket(ws: WebSocket, chat_id: str):
             text = str(event.get("text", "")).strip()
             if event.get("type") == "message.send" and 0 < len(text) <= 2000:
                 with Session(engine) as session:
-                    await post_group_message(session, chat_id, user, text)
+                    from fastapi import HTTPException
+                    try:
+                        await post_group_message(session, chat_id, user, text, event.get('demoSpeakerId'))
+                    except HTTPException:
+                        await ws.send_json({'type':'error','detail':'That public perspective is unavailable.'})
     except WebSocketDisconnect:
         pass
     finally:
