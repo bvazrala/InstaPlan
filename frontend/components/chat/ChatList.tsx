@@ -6,6 +6,7 @@ import type { Chat, ChatMessage, Member } from "@/lib/types";
 import { useTrip } from "@/lib/trip-context";
 import { ChatAvatar } from "./Avatar";
 import { Logo } from "./NavRail";
+import { usePlanner } from "@/lib/planner-context";
 import { STAGE_LABEL } from "./chat-meta";
 
 const TABS = [
@@ -20,6 +21,7 @@ export default function ChatList({ chats, activeId, unreadIds, onSelect, members
   members: Record<string, Member>; me: string; lastMessages: Record<string, ChatMessage>;
 }) {
   const { tripOf } = useTrip();
+  const plannerState = usePlanner();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("all");
 
@@ -71,6 +73,7 @@ export default function ChatList({ chats, activeId, unreadIds, onSelect, members
           const stage = tripOf(c.id).stage;
           const unread = unreadIds.includes(c.id);
           const tripTag = !!c.group && stage !== "idle";
+          const liveVoting = plannerState?.chatId === c.id && plannerState.planner?.status === 'collecting' && plannerState.planner.poll.ready;
           return (
             <li key={c.id}>
               <button
@@ -80,14 +83,14 @@ export default function ChatList({ chats, activeId, unreadIds, onSelect, members
                 <ChatAvatar chat={c} size={52} members={members} />
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate text-[15px] ${unread ? "font-semibold" : "font-medium"}`}>{c.name}</span>
-                  <span className={`flex items-center gap-1 text-[13px] ${unread ? "font-semibold text-foreground" : "text-muted"}`}>
+                  {liveVoting ? <span role="status" className="mt-1 flex items-center gap-2 overflow-hidden text-xs font-semibold text-red-600"><span className="live-voting-dot size-1.5 shrink-0 rounded-full bg-red-500"/><span className="min-w-0 overflow-hidden"><span className="live-voting-label inline-block whitespace-nowrap">Live voting · Have your say</span></span></span> : <span className={`flex items-center gap-1 text-[13px] ${unread ? "font-semibold text-foreground" : "text-muted"}`}>
                     {tripTag && (
                       <span className="flex shrink-0 items-center gap-1 rounded-full bg-violet-50 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
                         <MapPin size={10} /> {STAGE_LABEL[stage as Exclude<typeof stage, "idle">]}
                       </span>
                     )}
                     <span className="truncate">{lastMessages[c.id] ? `${lastMessages[c.id].from === me ? "You" : members[lastMessages[c.id].from]?.name ?? "Member"}: ${lastMessages[c.id].text}` : c.sub}</span>
-                  </span>
+                  </span>}
                 </span>
                 {unread && <span className="size-2.5 shrink-0 rounded-full bg-brand" aria-label="Unread" />}
               </button>

@@ -53,6 +53,7 @@ export function previewText(chat: Chat, stage: Stage): string {
 
 export const STAGE_LABEL: Record<Exclude<Stage, "idle">, string> = {
   collecting: "Collecting details",
+  confirmed: "Initial plan approved",
   voting: "Voting",
   checkin: "Private check-in",
   options: "Comparing options",

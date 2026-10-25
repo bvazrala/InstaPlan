@@ -28,11 +28,24 @@ def checkin_turn(ctx: PrivateContext, history: list[dict], user_text: str | None
     ctx = require_private_context(ctx)
     payload = {
         "first_name": ctx.first_name,
-        "current_prefs": ctx.prefs.model_dump(),
+        "current_prefs": ctx.prefs.model_dump(exclude={"origin_location"}),
         "suggested_ceiling": ctx.suggested_ceiling,
         "history": history,
         "user_message": user_text,
     }
     system = (PROMPTS / "private_checkin.md").read_text()
     schema = json.dumps(CheckInTurn.model_json_schema())
-    return CheckInTurn.model_validate(ask_json(f"{system}\n\nJSON schema for your reply:\n{schema}", json.dumps(payload)))
+    result = CheckInTurn.model_validate(ask_json(f"{system}\n\nJSON schema for your reply:\n{schema}", json.dumps(payload)))
+    result.prefs.origin_location = ctx.prefs.origin_location
+    return result
+
+
+def normalize_requirements(ctx: PrivateContext):
+    """One member's hard travel/lodging requirements only. No budget math or other members."""
+    from app.logic.planning import PrivateRequirements
+    ctx = require_private_context(ctx)
+    system = (PROMPTS / "normalize_requirements.md").read_text()
+    # Budget and private preference scores have no role in language normalization.
+    return PrivateRequirements.model_validate(ask_json(
+        system + "\nJSON schema:\n" + json.dumps(PrivateRequirements.model_json_schema()),
+        json.dumps({"accessibility": ctx.prefs.accessibility, "no_gos": ctx.prefs.no_gos})))

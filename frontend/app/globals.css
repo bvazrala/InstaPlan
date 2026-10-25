@@ -40,3 +40,11 @@ body {
 @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .animate-sheet { animation: sheet-up .28s cubic-bezier(.2,.8,.2,1); }
 .animate-in-fade { animation: fade-in .25s ease-out; }
+
+@keyframes voting-scroll { 0%, 20% { transform: translateX(0); } 75% { transform: translateX(-12%); } 100% { transform: translateX(0); } }
+@keyframes voting-pulse { 50% { opacity: .3; } }
+.live-voting-label { animation: voting-scroll 5s ease-in-out infinite; }
+.live-voting-dot { animation: voting-pulse 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .live-voting-label, .live-voting-dot { animation: none; }
+}

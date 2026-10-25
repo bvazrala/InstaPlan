@@ -1,0 +1,364 @@
+"""Pure public planning rules promoted from the listening lab; no I/O or private fields."""
+
+from copy import deepcopy
+from datetime import datetime
+
+TOPICS = {"Dining", "Travel", "Entertainment"}
+MEALS = {"breakfast", "lunch", "dinner", "snack", "brunch", "coffee"}
+ACCOMMODATIONS = {"hotel", "airbnb", "hostel", "none"}
+# Muse sometimes names a topic field loosely; map the obvious synonyms instead of dropping the update.
+FIELD_ALIASES = {"transportation": "trip_type", "transport": "trip_type", "travel_mode": "trip_type",
+                 "mode_of_travel": "trip_type", "travel_type": "trip_type", "lodging": "accommodation",
+                 "stay": "accommodation", "activity": "activity_type", "food_type": "cuisine"}
+TRIP_TYPES = {"flights": "flight", "fly": "flight", "plane": "flight", "airplane": "flight", "air": "flight",
+              "buses": "bus", "trains": "train", "rail": "train"}
+CLUSTER_FIELDS = {
+    "Dining": {"meal_type", "cuisine"},
+    "Travel": {"trip_type", "accommodation"},
+    "Entertainment": {"activity_type"},
+}
+
+
+def new_template(title: str, topic: str, location: str = "", location_kind: str = "search_area",
+                 place: dict | None = None, initiator: str = "", members: tuple[str, ...] = ()) -> dict:
+    title = title.strip()
+    if not 1 <= len(title) <= 120:
+        raise ValueError("Title is required (up to 120 characters)")
+    if topic not in TOPICS:
+        raise ValueError("Choose Dining, Travel, or Entertainment")
+    if location_kind not in {"destination", "search_area"}:
+        raise ValueError("Invalid location type")
+    if len(location) > 200:
+        raise ValueError("Location is too long")
+    return {
+        "members": list(members),
+        "title": title,
+        "initiator": initiator,  # who opened the planner; not an owner
+        "base_location": (place or {}).get("address") or location.strip() or None,  # where the group starts from
+        "topic": topic,
+        "when": {"flexibility": {}, "agreed": None},
+        "where": {"destination": None, "destination_hint": None, "search_area": None, "origins": {}},
+        "preferences": {},
+        "hard_constraints": {},
+        "spoke": [],  # members who have sent a message (drives the inactive = conditional default)
+        "attendance": {},  # per person: going / not_going / conditional (+ condition text)
+        "cluster": {},
+        "sources": {},
+    } | {"where": {"destination": place if location_kind == "destination" else None, "destination_hint": None,
+                   "search_area": None if location_kind == "destination" else (location.strip() or None),
+                   "origins": {}}}
+
+
+STATUSES = {"going", "not_going", "conditional"}
+
+
+def attending(template: dict) -> set[str]:
+    """Everyone who has not declined; they are the people the plan is for and who vote."""
+    declined = {uid for uid, entry in template.get("attendance", {}).items() if entry["status"] == "not_going"}
+    return set(template["members"]) - declined
+
+
+def effective_attendance(template: dict) -> dict[str, dict]:
+    """Stated status per person. Without one: someone who has spoken is treated as going, and someone who has not
+    spoken yet is conditional ('hasn't responded yet'), so inactive members never block the plan."""
+    spoke = set(template.get("spoke", []))
+    result = {}
+    for uid in sorted(template["members"]):
+        entry = template.get("attendance", {}).get(uid)
+        if entry:
+            result[uid] = {**entry, "inferred": False}
+        elif uid in spoke:
+            result[uid] = {"status": "going", "condition": None, "inferred": True}
+        else:
+            result[uid] = {"status": "conditional", "condition": "hasn't responded yet", "inferred": True}
+    return result
+
+
+def _attendance(value: object) -> tuple[dict | None, str | None]:
+    status = value.get("status") if isinstance(value, dict) else value
+    condition = value.get("condition") if isinstance(value, dict) else None
+    status = status.strip().lower().replace(" ", "_").replace("-", "_") if isinstance(status, str) else None
+    status = {"no": "not_going", "cant_go": "not_going", "declined": "not_going", "yes": "going", "maybe": "conditional"}.get(status, status)
+    if status not in STATUSES:
+        return None, "attendance must be going, not_going or conditional"
+    if condition is not None and (not isinstance(condition, str) or len(condition.strip()) > 120):
+        return None, "attendance condition must be a short string"
+    return {"status": status, "condition": (condition or "").strip() or None if status == "conditional" else None}, None
+
+
+def missing_fields(template: dict) -> list[str]:
+    missing = []
+    if not template["title"]:
+        missing.append("title")
+    # A time is settled once the chat converged on one (when.agreed), or the people who are actively going have
+    # each given theirs. Declined and conditional (including not-yet-heard-from) members never hold the plan up.
+    if not attending(template):
+        missing.append("at least one person attending")
+    eff = effective_attendance(template)
+    waiting = [uid for uid in template["members"] if eff[uid]["status"] == "going"
+               and uid not in template["when"]["flexibility"]]
+    if not template["when"].get("agreed") and (waiting or not template["when"]["flexibility"]):
+        missing.append("when.agreed (or availability from " + (", ".join(waiting) or "someone going") + ")")
+    if not (template["where"]["destination"] or template["where"]["search_area"]):
+        missing.append("where.destination or where.search_area")
+    return missing  # topic (cluster) fields are all optional
+
+
+def conversation_poll_ready(template: dict) -> bool:
+    """Open the proposal after half the actual members speak; extraction never blocks it."""
+    from math import ceil
+    members = set(template['members'])
+    return bool(members) and len(set(template.get('spoke', [])) & members) >= ceil(len(members) / 2)
+
+
+def _dedupe_windows(value: list[dict] | None) -> list[dict] | None:
+    """Keep each distinct window once (case-insensitive), in the order given."""
+    if value is None:
+        return None
+    seen, windows = set(), []
+    for window in value:
+        label = window["label"].strip()
+        if label.lower() not in seen:
+            seen.add(label.lower())
+            windows.append({"label": label})
+    return windows
+
+
+WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+
+def _agreed(value: object) -> tuple[dict | None, str | None]:
+    """The group's settled time: a label plus an ISO date only when it is a real date on the named weekday."""
+    label, date = (value, None) if isinstance(value, str) else (
+        (value.get("label"), value.get("date")) if isinstance(value, dict) else (None, None))
+    if not isinstance(label, str) or not 0 < len(label.strip()) <= 120:
+        return None, "agreed time needs a short label"
+    parsed = None
+    if isinstance(date, str):
+        try:
+            parsed = datetime.strptime(date.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            parsed = None  # an impossible date (Feb 30) is dropped, the label stays
+    if parsed:
+        named = [day for day in WEEKDAYS if day in label.lower() or day[:3] in label.lower().split()]
+        if named and WEEKDAYS[parsed.weekday()] not in named:
+            parsed = None  # "Sunday" labelled with a Monday date: keep the words, not the wrong date
+    return {"label": label.strip(), "date": parsed.isoformat() if parsed else None}, None
+
+
+def _strings(value: object) -> list[str] | None:
+    if not isinstance(value, list) or len(value) > 20:
+        return None
+    if not all(isinstance(item, str) and 0 < len(item.strip()) <= 160 for item in value):
+        return None
+    return [item.strip() for item in value]
+
+
+def apply_updates(template: dict, updates: object, messages: list[dict]) -> tuple[dict, list[dict]]:
+    """Apply only grounded, group-safe fields. One source message must support each update."""
+    result = deepcopy(template)
+    by_id = {message["id"]: message for message in messages}
+    decisions = []
+    if not isinstance(updates, list):
+        return result, [{"accepted": False, "reason": "updates must be a list"}]
+    for item in updates[:30]:
+        if not isinstance(item, dict):
+            decisions.append({"accepted": False, "reason": "invalid update"})
+            continue
+        field, value = item.get("field"), item.get("value")
+        if isinstance(field, str):
+            field = field.strip()
+            for prefix in ("cluster.", "template."):  # Muse often prefixes topic fields
+                if field.startswith(prefix):
+                    field = field[len(prefix):]
+            field = FIELD_ALIASES.get(field, field)
+        if field == "trip_type" and isinstance(value, str):
+            value = TRIP_TYPES.get(value.strip().lower(), value)
+        source_id, user_id = item.get("source_message_id"), item.get("user_id")
+        source = by_id.get(source_id)
+        reason = None
+        if not source:
+            reason = "source message is not in this batch"
+        elif field == "where.origins":
+            reason = "origins come from each member's device location, not the chat"
+        elif field == "where.destination":
+            reason = "the exact destination must be picked from Google Maps, not extracted from chat"
+        elif field == "where.destination_hint":
+            if not isinstance(value, str) or not 0 < len(value.strip()) <= 120:
+                reason = "hint must be a short place name"
+            else:
+                result["where"]["destination_hint"] = value.strip()
+        elif field == "when.agreed":
+            agreed, reason = _agreed(value)
+            if reason is None:
+                result["when"]["agreed"] = agreed
+        elif field in {"when.flexibility", "preferences", "hard_constraints", "attendance", "budget"}:
+            if user_id not in set(template["members"]) or user_id != source["user_id"]:
+                reason = "personal field must belong to the speaker"
+            elif field == "attendance":
+                entry, reason = _attendance(value)
+                if reason is None:
+                    result["attendance"][user_id] = entry
+                    if entry["status"] == "not_going":
+                        result["when"]["flexibility"].pop(user_id, None)  # a decline replaces any earlier availability
+            elif field == "budget":
+                import math
+                if 'budget' not in template:
+                    reason = 'public budgets are not enabled for this plan'
+                elif value is not None and (isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or not 0 <= value <= 10_000_000):
+                    reason = 'budget must be a nonnegative number or null'
+                else:
+                    result['budget'][user_id] = value
+            elif field == "when.flexibility":
+                if value == []:
+                    reason = "an empty availability is not accepted; use attendance not_going for 'can't go'"
+                elif value is not None and (not isinstance(value, list) or not value or len(value) > 10 or
+                                          not all(isinstance(window, dict) and
+                                                  isinstance(window.get("label"), str) and
+                                                  0 < len(window["label"].strip()) <= 160 for window in value)):
+                    reason = "availability must be explicit flexible (null) or time windows with labels"
+                else:
+                    result["when"]["flexibility"][user_id] = _dedupe_windows(value)
+            else:
+                cleaned = _strings(value)
+                if cleaned is None:
+                    reason = "expected a list of short strings"
+                else:
+                    result[field][user_id] = cleaned
+        elif field == "where.search_area":
+            if not isinstance(value, str) or not 0 < len(value.strip()) <= 200:
+                reason = "search area must be a nonempty label"
+            elif result["where"]["destination"]:
+                reason = "an exact destination is already chosen"
+            else:
+                result["where"]["search_area"] = value.strip()
+        elif field in CLUSTER_FIELDS[result["topic"]]:
+            if field == "cuisine":
+                cleaned = _strings(value)
+                if cleaned is None:
+                    reason = "cuisine must be a list of strings"
+                else:
+                    result["cluster"][field] = cleaned
+            elif not isinstance(value, str) or not 0 < len(value.strip()) <= 120:
+                reason = "topic field must be a nonempty string"
+            elif field == "meal_type" and value.strip().lower() not in MEALS:
+                reason = "invalid meal type"
+            elif field == "accommodation" and value.strip().lower() not in ACCOMMODATIONS:
+                reason = "invalid accommodation"
+            else:
+                result["cluster"][field] = value.strip().lower()
+        else:
+            reason = "unknown or inactive topic field"
+        accepted = reason is None
+        if accepted:
+            result["sources"][f"{field}:{user_id or 'group'}"] = source_id
+        decisions.append({"accepted": accepted, "field": field, "user_id": user_id,
+                          "source_message_id": source_id, "reason": reason})
+    return result, decisions
+
+
+import json
+import re
+
+
+def semantic_signature(template: dict) -> str:
+    return json.dumps({key: value for key, value in template.items() if key not in {"sources", "spoke"}}, sort_keys=True)
+
+
+def public_text(text: str) -> str:
+    # Group listening must not extract private financial details from a public message.
+    if re.search(r"[$€£]|\b(?:budget|bank|balance|income|salary|afford|spend|ceiling)\b|\b(?:under|cap)\b.*\d|\bi can do\s+\d|[-+]?\d{1,3}\.\d+\s*,\s*[-+]?\d{1,3}\.\d+", text, re.I):
+        return "[Sensitive financial or precise location details omitted.]"
+    return text
+
+
+def safe_updates(template: dict, updates: object, messages: list[dict], *, field_versions=None, source_revisions=None):
+    field_versions, source_revisions = field_versions or {}, source_revisions or {}
+    filtered = []
+    for item in updates[:30] if isinstance(updates, list) else []:
+        if not isinstance(item, dict):
+            continue
+        field = str(item.get("field", "")).removeprefix("cluster.").removeprefix("template.")
+        item = dict(item)
+        field = FIELD_ALIASES.get(field,field)
+        item['field'] = field
+        if field not in {'attendance','when.flexibility','preferences','hard_constraints','budget'}:
+            item['user_id'] = None
+        uid = item.get("user_id")
+        key = f"{field}:{uid or 'group'}"
+        source = item.get("source_message_id")
+        if not isinstance(source,str) or uid is not None and not isinstance(uid,str):
+            continue
+        if field in {"private_scores", "origin_location"} or field == "budget" and "budget" not in template:
+            continue
+        if field != "budget" and public_text(json.dumps(item.get("value"), ensure_ascii=False)) != json.dumps(item.get("value"), ensure_ascii=False):
+            continue
+        if field_versions.get(key, -1) > source_revisions.get(source, float("inf")):
+            continue
+        if field == 'budget' and source != 'manual':
+            original = next((message.get('text','') for message in messages if message.get('id')==source),'')
+            if re.search(r'€|£|\b(?:EUR|GBP|CAD|AUD|JPY|INR)\b',original,re.I):
+                continue
+            if item.get('value') is None:
+                if not re.search(r'no (?:budget|limit|cap)|budget.*(?:flexible|unknown|undecided|clear)',original,re.I):
+                    continue
+                filtered.append(item)
+                continue
+            numbers = re.findall(r'\d+(?:\.\d+)?',original.replace(',',''))
+            if not re.search(r'budget|spend|afford|under|[$€£]|i can do',original,re.I) or not any(float(number)==item['value'] for number in numbers):
+                continue
+        filtered.append(item)
+    return apply_updates(template, filtered, messages)
+
+
+def ground_timing(updates: object, messages: list[dict], today: str) -> list[dict]:
+    """Resolve simple relative dates against the plan's local day; never trust a guessed model date."""
+    from datetime import date, timedelta
+    local_day = date.fromisoformat(today)
+    sources = {m['id']:m.get('text','') for m in messages}
+    grounded = []
+    for update in updates[:30] if isinstance(updates,list) else []:
+        if not isinstance(update,dict):
+            continue
+        item = deepcopy(update)
+        if item.get('field') == 'when.agreed':
+            value = item.get('value')
+            if isinstance(value,str):
+                value = {'label':value,'date':None}
+            if isinstance(value,dict):
+                source_id = item.get('source_message_id')
+                source = sources.get(source_id,'').casefold() if isinstance(source_id,str) else ''
+                resolved = None
+                # Exact source dates must be unambiguous, not a date chosen from several alternatives.
+                explicit = re.findall(r'\b\d{4}-\d{2}-\d{2}\b',source)
+                if len(set(explicit)) == 1 and not re.search(r'\b(?:maybe|either|or)\b',source):
+                    try:
+                        resolved = date.fromisoformat(explicit[0])
+                    except ValueError:
+                        pass
+                elif not explicit and not re.search(r'\b(?:maybe|either|sometime|or)\b',source):
+                    if re.search(r'\btomorrow\b',source):
+                        resolved = local_day + timedelta(days=1)
+                    elif re.search(r'\b(?:today|tonight)\b',source):
+                        resolved = local_day
+                    else:
+                        days = [i for i,day in enumerate(WEEKDAYS) if re.search(r'\b'+day+r'\b',source)]
+                        if len(days) == 1:
+                            delta = (days[0]-local_day.weekday()) % 7
+                            if 'next ' in source and delta == 0:
+                                delta = 7
+                            resolved = local_day + timedelta(days=delta)
+                value['date'] = resolved.isoformat() if resolved else None
+                item['value'] = value
+        grounded.append(item)
+    return grounded
+
+
+
+def listener_text(text: str, *, public_budget=False) -> str:
+    """Only explicit public spending limits opt into the new demo; bank/account data never does."""
+    if not public_budget:
+        return public_text(text)
+    if re.search(r'\b(?:bank|balance|income|salary|account|routing|card number)\b|[-+]?\d{1,3}\.\d+\s*,\s*[-+]?\d{1,3}\.\d+',text,re.I):
+        return '[Sensitive financial or precise location details omitted.]'
+    return text

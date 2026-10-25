@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 def _make_engine():
-    url = get_settings().database_url
+    url = get_settings().effective_database_url
     if url.startswith("sqlite"):
         # In-memory SQLite (tests) needs one shared connection.
         extra = {"poolclass": StaticPool} if url in ("sqlite://", "sqlite:///:memory:") else {}

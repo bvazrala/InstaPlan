@@ -1,7 +1,8 @@
 // REST client for the FastAPI backend. Every request carries the user's token; the server decides what they may see.
 import { getAccessToken } from "./supabase";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { API_URL } from "./config";
+export { API_URL } from "./config";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {

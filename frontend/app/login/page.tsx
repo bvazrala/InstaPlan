@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { getClientSession, getSupabaseClient, supabaseConfigured } from "@/lib/supabase";
 import { PrimaryButton } from "@/components/ui/primitives";
 
 const field = "w-full rounded-lg border border-line bg-surface px-3.5 py-3 text-sm outline-none transition placeholder:text-muted focus:border-neutral-400";
@@ -15,7 +15,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getClientSession().then((session) => {
+      if (session?.demoMode && !cancelled) router.replace("/");
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [router]);
+
   const signIn = async () => {
+    const supabase = getSupabaseClient();
     if (!supabase) return setError("Supabase login is not configured.");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setError(error.message);
@@ -32,9 +41,9 @@ export default function LoginPage() {
             <p className="mt-1 text-sm text-muted">Plan trips right in the group chat.</p>
           </div>
         </div>
-        {!supabase && (
+        {!supabaseConfigured && (
           <p className="rounded-lg bg-amber-50 p-3 text-xs leading-snug text-amber-800">
-            Supabase isn&apos;t configured. Set the public URL and publishable key in <code>.env.local</code> to enable chat.
+            Start the local demo backend to continue without login, or configure the public Supabase settings in <code>.env.local</code>.
           </p>
         )}
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" autoComplete="email" className={field} />

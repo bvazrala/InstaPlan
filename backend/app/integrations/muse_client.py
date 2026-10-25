@@ -24,7 +24,7 @@ def model_id() -> str:
 
 def _client() -> OpenAI:
     s = get_settings()
-    return OpenAI(api_key=s.muse_api_key, base_url=s.muse_base_url)
+    return OpenAI(api_key=s.muse_api_key, base_url=s.muse_base_url, timeout=20, max_retries=0)
 
 
 def ask_json(system: str, user: str) -> dict[str, Any]:

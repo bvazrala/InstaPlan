@@ -28,12 +28,16 @@ class GroupMember(_Frozen):
 
 
 class GroupMessage(_Frozen):
+    sender_id: str | None = None
     id: str
     sender_name: str
     text: str
 
 
 class GroupFact(_Frozen):
+    id: str | None = None
+    score: int | None = None
+    required: bool = False
     field: str
     value: str
     by: str | None = None
@@ -44,6 +48,7 @@ class GroupContext(_Frozen):
     members: tuple[GroupMember, ...]
     recent_messages: tuple[GroupMessage, ...]
     facts: tuple[GroupFact, ...] = ()
+    listener: dict | None = None
 
 
 class PrivateContext(_Frozen):

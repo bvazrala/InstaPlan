@@ -1,6 +1,7 @@
 "use client";
 
 import { Compass, X } from "lucide-react";
+import { useLiveOptions } from "@/lib/live-options";
 import { useTrip } from "@/lib/trip-context";
 import type { Stage } from "@/lib/types";
 import { OPTIONS } from "@/mocks/demo-data";
@@ -17,6 +18,15 @@ const Sender = () => (
 /** Inline card the assistant posts into the chat; every line is read from this trip's state. */
 export default function TripChatCard() {
   const { trip, stage, setStage, offerDismissed, dismissOffer, setPanelOpen, participants, profile, need, accepted, finalized } = useTrip();
+  const live = useLiveOptions();
+  if (live) {
+    if (live.loading || !live.trip) return null;
+    const liveBusy = live.status.status === "resolving" || live.status.status === "generating";
+    return <div className="ml-9 mt-3 max-w-[300px] space-y-2 rounded-2xl border border-line bg-white p-4">
+      <Sender /><p className="font-semibold">{liveBusy ? "Finding group options…" : live.trip.pickedOptionId ? "Trip option picked" : live.trip.stage === "options" ? `${live.options.length} trip options` : "Group trip"}</p>
+      <button className="h-9 w-full rounded-md border border-line text-sm" onClick={() => setPanelOpen(true)}>Open trip</button>
+    </div>;
+  }
   const open = (s?: Stage) => { if (s) setStage(s); setPanelOpen(true); };
 
   if (stage === "idle") {
@@ -38,6 +48,7 @@ export default function TripChatCard() {
   const done = participants.filter((id) => trip.expensesDone.includes(id)).length;
   const last = trip.expenses.at(-1);
   const body: Record<Exclude<Stage, "idle">, { title: string; line: string; cta: string }> = {
+    confirmed: {title:"Initial plan approved",line:"Finding recommendations for the approved plan.",cta:"Open planner"},
     collecting: { title: "Trip details", line: `${filledFields(profile, participants)} of ${totalFields(participants)} details filled in from the chat`, cta: "View details" },
     voting: { title: "Are we going?", line: `${yes} of ${participants.length} are in so far.`, cta: "Vote" },
     checkin: { title: "Check-in", line: `${trip.checkedIn.filter((id) => participants.includes(id)).length} of ${participants.length} have submitted. Your answers stay private.`, cta: "Open check-in" },

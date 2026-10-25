@@ -1,30 +1,34 @@
-// Client-side re-sorting of options the server already priced (R13: no new API calls).
+// Local sorting of already-priced results; no network calls and no private budget values.
 import type { Option, SortKey } from "./types";
-
+const cents = (n: number) => Math.round(n * 100);
 export const personTotal = (o: Option, memberId: string) => {
-  const leg = o.people.find((x) => x.id === memberId);
-  return (leg?.cost ?? 0) + o.lodgingShare + o.daily * o.nights;
+  const leg = o.people.find((p) => p.id === memberId);
+  if (!leg) return Infinity;
+  if (leg.subtotal !== undefined) return leg.subtotal ?? Infinity;
+  if (leg.cost == null) return Infinity;
+  return (cents(leg.cost) + cents(leg.lodgingAllocation ?? o.lodgingShare) + cents(o.daily) * o.nights) / 100;
 };
-
-export const groupTotal = (o: Option) => o.people.reduce((sum, leg) => sum + personTotal(o, leg.id), 0);
-
-export const perPerson = (o: Option) => groupTotal(o) / Math.max(1, o.people.length);
-
-/** Longest travel time in the group, so nobody spends a day getting there. */
-export const maxHours = (o: Option) => Math.max(...o.people.map((x) => x.hours));
-
-/** Balanced uses weight w for cost and (1 − w) for time, each normalized 0–1 across the current options. */
+export const groupTotal = (o: Option) => o.groupTotal !== undefined ? o.groupTotal ?? Infinity
+  : o.people.length ? o.people.reduce((sum, p) => sum + cents(personTotal(o, p.id)), 0) / 100 : Infinity;
+export const perPerson = (o: Option) => o.people.length ? groupTotal(o) / o.people.length : Infinity;
+export const maxHours = (o: Option) => o.maxTravelHours !== undefined ? o.maxTravelHours ?? Infinity
+  : o.people.length ? Math.max(...o.people.map((p) => p.hours ?? Infinity)) : Infinity;
 export function sortOptions(opts: Option[], key: SortKey, w = 0.5): Option[] {
-  const cost = opts.map(groupTotal);
-  const time = opts.map(maxHours);
-  const norm = (v: number, a: number[]) => {
-    const lo = Math.min(...a), hi = Math.max(...a);
-    return hi === lo ? 0 : (v - lo) / (hi - lo);
+  const costs = opts.map(groupTotal), times = opts.map(maxHours);
+  const norm = (value: number, values: number[]) => {
+    if (!Number.isFinite(value)) return Infinity;
+    const finite = values.filter(Number.isFinite);
+    const lo = Math.min(...finite), hi = Math.max(...finite);
+    return hi === lo ? 0 : (value - lo) / (hi - lo);
   };
-  const score = (o: Option, i: number) =>
-    key === "cheapest" ? cost[i]
-    : key === "fastest" ? time[i]
-    : key === "fairest" ? o.fairestRank
-    : w * norm(cost[i], cost) + (1 - w) * norm(time[i], time);
-  return opts.map((o, i) => ({ o, s: score(o, i) })).sort((a, b) => a.s - b.s).map((x) => x.o);
+  const weight = Math.min(1, Math.max(0, w));
+  const score = (o: Option) => key === "cheapest" ? groupTotal(o)
+    : key === "fastest" ? maxHours(o) : key === "fairest" ? o.fairestRank
+    : Number.isFinite(groupTotal(o)) && Number.isFinite(maxHours(o))
+      ? weight * norm(groupTotal(o), costs) + (1 - weight) * norm(maxHours(o), times) : Infinity;
+  return [...opts].sort((a, b) => {
+    const x = score(a), y = score(b);
+    return (x < y ? -1 : x > y ? 1 : 0) || (key === "fairest" ? groupTotal(a) - groupTotal(b) : 0)
+      || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  });
 }

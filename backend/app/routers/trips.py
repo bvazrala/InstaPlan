@@ -6,7 +6,7 @@ from sqlmodel import Session, func, select
 from app.auth import CurrentUser, get_current_user
 from app.db import get_session
 from app.logic.trip_state import InvalidTransition, Stage, advance, has_majority
-from app.models import Fact, PrivatePrefs, Trip, TripOption, TripVote
+from app.models import Fact, OptionGeneration, PrivatePrefs, Trip, TripOption, TripVote
 from app.privacy.access import member_ids, require_chat_member, require_trip_member
 from app.realtime import hub
 from app.schemas import ApiModel, FactOut, FactPatch, PickIn, TripOut, VoteIn
@@ -48,6 +48,14 @@ async def start_trip(chat_id: str, user: CurrentUser = Depends(get_current_user)
     return trip_out(session, trip)
 
 
+@router.get("/chats/{chat_id}/trips/active", response_model=TripOut | None)
+def active_trip(chat_id: str, user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)):
+    require_chat_member(session, chat_id, user)
+    trip = session.exec(select(Trip).where(Trip.chat_id == chat_id, Trip.stage != "settle")
+                        .order_by(Trip.created_at.desc())).first()
+    return trip_out(session, trip) if trip else None
+
+
 @router.get("/trips/{trip_id}", response_model=TripOut)
 def get_trip(trip_id: str, user: CurrentUser = Depends(get_current_user), session: Session = Depends(get_session)):
     return trip_out(session, require_trip_member(session, trip_id, user))
@@ -57,7 +65,13 @@ def get_trip(trip_id: str, user: CurrentUser = Depends(get_current_user), sessio
 async def change_stage(trip_id: str, body: StageIn, user: CurrentUser = Depends(get_current_user),
                        session: Session = Depends(get_session)):
     """Call the vote, go back to collecting, move on to settle up. Allowed moves: logic/trip_state.py."""
-    return await _set_stage(session, require_trip_member(session, trip_id, user), body.stage)
+    trip = require_trip_member(session, trip_id, user)
+    from app.models import PlannerSession
+    if session.get(PlannerSession, trip_id):
+        raise HTTPException(409, "Use planner approval or revision to change this plan.")
+    if body.stage == Stage.PICKED:
+        raise HTTPException(409, "Use the option pick endpoint to select a verified option.")
+    return await _set_stage(session, trip, body.stage)
 
 
 @router.get("/trips/{trip_id}/facts", response_model=list[FactOut])
@@ -111,8 +125,27 @@ async def pick_option(trip_id: str, body: PickIn, user: CurrentUser = Depends(ge
                       session: Session = Depends(get_session)):
     """R15: the group picks an option."""
     trip = require_trip_member(session, trip_id, user)
+    from app.logic.generation import recent, revision
+    from app.models import PlannerSession
+    planner = session.get(PlannerSession, trip_id)
+    if planner and (planner.status != 'approved' or planner.topic != 'Travel'):
+        raise HTTPException(409, "Approve the current travel plan before picking.")
+    # Serialize picking with option-set publication on PostgreSQL.
+    trip = session.exec(select(Trip).where(Trip.id == trip_id).with_for_update()).one()
+    run = session.get(OptionGeneration, trip_id)
+    if run and recent(run):
+        raise HTTPException(409, "Wait for option generation to finish.")
+    if run and run.published_revision != revision(session, trip):
+        raise HTTPException(409, "Trip details changed. Generate options again before picking.")
     option = session.get(TripOption, body.option_id)
     if option is None or option.trip_id != trip_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+    if not option.data.get("pick_eligible", False):
+        raise HTTPException(409, "This option has requirements that still need verification.")
+    if option.data.get("capacity_ack_required") and not body.acknowledge_capacity:
+        raise HTTPException(409, "Acknowledge that lodging capacity must be confirmed before booking.")
+    if planner:
+        from app.logic.planner_service import save
+        save(session, planner, status='picked')
     trip.picked_option_id = option.id
     return await _set_stage(session, trip, Stage.PICKED)

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- Public avatar URLs are rendered directly with an initials fallback. */
 import { memberById } from "@/mocks/demo-data";
 import type { Chat, Member } from "@/lib/types";
 
@@ -10,15 +11,15 @@ const Dot = ({ size }: { size: number }) => (
 );
 
 export function Avatar({ id, size = 36, ring = false, online = false, members }: { id: string; size?: number; ring?: boolean; online?: boolean; members?: Record<string, Member> }) {
-  const m = members ? members[id] ?? { name: "Member", hue: 260 } : memberById(id);
+  const m = members ? members[id] ?? { name: "Member", hue: 260,avatarUrl:null } : {...memberById(id),avatarUrl:null};
   return (
     <span className="relative inline-flex shrink-0" style={{ width: size, height: size }}>
       <span
-        className={`flex h-full w-full items-center justify-center rounded-full font-semibold ${ring ? "ring-2 ring-white" : ""}`}
+        className={`relative flex h-full w-full items-center justify-center rounded-full font-semibold ${ring ? "ring-2 ring-white" : ""}`}
         style={{ fontSize: size * 0.4, background: `hsl(${m.hue} 70% 91%)`, color: `hsl(${m.hue} 50% 30%)` }}
         aria-label={m.name}
       >
-        {m.name[0]}
+        {m.name[0]}{'avatarUrl' in m && m.avatarUrl && /^(https?:\/\/|\/planner\/people\/)/.test(m.avatarUrl) && <img src={m.avatarUrl} alt={m.name} className="absolute inset-0 h-full w-full rounded-full object-cover" onError={event=>{event.currentTarget.style.display='none';}}/>}
       </span>
       {online && <Dot size={size} />}
     </span>

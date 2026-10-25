@@ -1,6 +1,6 @@
 # InstaPlan
 
-**A trip planner that lives inside the group chat.** It picks up what everyone wants as they talk, checks in privately with each person about budget and limits, and returns trip options that fit the whole group, without anyone seeing anyone else's private answers.
+**A group planner that lives inside the chat.** Start a Dining, Travel, or Entertainment plan from **+ Planner**, optionally pick a city or exact place from Google Maps, and let the conversation build the template. Friends respond with “Yes, I’m going” or “Not coming”; enough confirmations trigger one sourced recommendation widget. The hackathon demo has no private check-in step. Only voluntarily public spending limits enter its template; historical encrypted private records stay protected.
 
 Built at HackTX 2026 for the Meta, SerpApi and Capital One tracks, with a .tech domain from MLH.
 
@@ -32,12 +32,11 @@ InstaPlan does two things existing planners don't:
 
 ## How it works
 
-1. **Trip mention.** Someone types "we should do a trip to NYC" or taps *Plan a trip*. A live trip card appears in the chat.
-2. **Collect.** As the group chats, the assistant (Muse Spark) turns messages into facts on the trip card, and asks one tap-to-answer question when something required is missing.
-3. **Vote.** The group votes "We're going." A majority locks the trip in.
-4. **Private check-in.** The assistant checks in with each person in a private thread: budget, dietary and accessibility needs, private no-gos. A linked Capital One account (Nessie) suggests a safe-to-spend ceiling.
-5. **Options.** SerpApi prices flights, lodging and food per person. Options show per-person cost, travel time and a red-to-green group fit score, sortable by cheapest, fastest, balanced or fairest.
-6. **Pick and settle up.** The group picks an option, logs shared expenses, and pays each other back with one tap through Nessie.
+1. **Start.** Choose **+ → Planner**, enter a title, optionally choose a Google Maps city/exact venue, then pick Dining, Travel or Entertainment.
+2. **Converse.** The listener fills public attendance, agreed timing, availability, destination/search area, optional origins, volunteered spending limits, preferences, hard constraints and the active topic's optional fields.
+3. **Respond.** A compact plan-and-poll card appears automatically when the required template is ready. Profile pictures show confirmations and declines; conditional attendance stays in the background. Responses are **Yes, I’m going** and **Not coming**. Explicit conversational declines are honored.
+4. **Get one recommendation.** Enough confirmations freeze the plan and trigger bounded provider searches. One recommended choice appears with the supplied formation animation. Sourced flight, concert and college-football cards can have a second place/stay fallback slide. Train or unsupported/incomplete travel data uses the real place/stay fallback; no rail fare is fabricated.
+5. **Reset the demo.** **Reset demo** clears the visible conversation and active planner, cancels obsolete work and lets the crew start again. Historical records and encrypted data are retained. The four-person public speaker switcher does not change the authenticated viewer of personalized flight data.
 
 ## Tech stack
 
@@ -106,7 +105,27 @@ instaplan/
 
 ## Getting started
 
-**You need:** Node 20.9+, Python 3.11+, and a Supabase project for authenticated chat: follow [docs/supabase-setup.md](docs/supabase-setup.md). The frontend does not substitute demo chat data when authentication is unavailable.
+**You need:** Node 22.13+ and Python 3.11+. Use local demo mode below to work without Supabase, or configure authenticated chat with [docs/supabase-setup.md](docs/supabase-setup.md).
+
+### Local demo without login
+
+In `backend/.env`, set `APP_ENV=dev` and `DEMO_MODE=true`, then start the backend
+from `backend/` and the frontend from `frontend/` using the commands below. Open
+[localhost:3000](http://localhost:3000); no username, password or Supabase project is
+needed. The browser discovers this mode from the backend, including WebSocket access.
+
+Demo mode uses the fixed Jordan identity, four synthetic group members, and a
+ready-to-price New York trip with different departure airports. Data persists in
+`backend/instaplan-demo.db`, isolated from `DATABASE_URL` and your existing database.
+No Supabase users are created or contacted. Membership checks and owner-only private
+routes remain enforced. The mode is rejected outside `APP_ENV=dev`, accepts only
+loopback clients/trusted browser origins, and must be served on 127.0.0.1.
+
+Muse and SerpApi remain real optional integrations using backend keys. Starting the
+demo makes no paid requests; click **Generate options** to request live prices.
+To restore normal Supabase authentication, set `DEMO_MODE=false` and restart the
+backend, then reload the browser. Your original database URL and Supabase settings
+are preserved. An unavailable backend does not silently enable demo sessions.
 
 ### Backend
 
@@ -128,7 +147,7 @@ cd frontend
 npm install
 cp .env.example .env.local
 npm run dev                        # http://localhost:3000
-npm run lint && npm run build      # run before every merge
+npm test && npm run lint && npm run build # run before every merge
 ```
 
 ### Keys checklist
@@ -191,8 +210,8 @@ Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/ar
 | Private check-in thread | R9, R22 | Done (Muse, private side); start it on lock-in | Show as a private thread, wire |
 | Final-touches summary | R10 | To do | To do |
 | Nessie budget suggestion | R11 | Done | Wire |
-| Generate options (SerpApi) | R12 | To do: `pipeline.generate_options` lists the steps | Wire |
-| Sort and fit colors | R13, R14 | Logic done (`logic/fit.py`, `logic/ranking.py`) | Done |
+| Generate options (SerpApi) | R12 | Implemented: bounded multi-origin pricing, fit, ranking and background generation; live-key smoke pending | Live cards, comparison and picking |
+| Sort and fit colors | R13, R14 | Four strategies, hard-constraint evaluation and privacy-safe fit | Live local sorts, exact allocations and unverified-state labels |
 | Pick an option | R15 | Done | Wire |
 | Tweak in plain words | R16 | To do | Input exists |
 | Settle up through Nessie | R17 | Done | Wire |
@@ -234,3 +253,18 @@ Deploy the backend on day one, not the last hour: WebSockets need a persistent s
 ---
 
 The frontend UI started as the original InstaPlan prototype and was reorganized into this structure.
+
+## Unified planner development flow
+
+In the local demo, open a group chat and choose **+ → Planner**. Name the plan and choose Dining, Travel, or Entertainment. The four-person switcher changes public message attribution and the public fields being edited; your private account never changes. There is no automatically approved seeded trip.
+
+Conversation updates a persisted public template. Members can correct attendance and availability, approve the initial criteria, see real recommendations and pick a saved result. Travel asks for exact flight dates and confirmed airports after initial approval. **Revise plan** requires fresh approval. Venue costs, ticket availability and future opening hours are explicit unknowns; flight/lodging options retain exact participant allocations and private fairness evaluation.
+
+The normal application contains useful listening and recovery states. Raw model traces and diagnostics remain in `backend/scripts/listening_lab`, which is not imported by production code. Planner sessions, revision-scoped approvals, durable listening batches and venue results are created through the existing startup table/RLS mechanism. Existing trip history is preserved.
+
+Optional Places picking uses server-only `GOOGLE_MAPS_API_KEY`; missing provider keys show unavailable states. Tests mock providers and do not need keys or make paid requests. See `docs/api-contract.md` for the unified API and privacy boundary.
+
+
+The planner now opens with a readable public summary; **Edit details** reveals corrections when needed. Approval leaves a persistent **Plan confirmed** card in the chat, followed by a widget adapted from the supplied design handoff. Venue and stay photos/reviews come from provider results, not gallery samples. Concert/college-football slides use matching SerpApi event listings; an optional owner-only flight action requires a confirmed origin, explicit permission and a safe provider booking URL. Missing evidence keeps the common place/stay card. The train presentation is available but no live train provider is configured.
+
+Conversation planners open the in-chat RSVP poll as soon as at least half the current chat members have spoken since planner creation (rounded up). Incomplete availability and queued listening do not hide or block the poll. Silent members await a response; conversational declines can be changed with Yes. The approval threshold still controls recommendation generation: participation alone is not approval. Unresolved timing and location remain explicit.
