@@ -169,6 +169,7 @@ def test_websocket_member_receives_group_messages(client, world, monkeypatch):
     monkeypatch.setattr("app.routers.ws.verify_token", lambda token: CurrentUser(id=token))
     with client.websocket_connect(f"/ws/chats/{world['chat_id']}") as ws:
         ws.send_json({"type": "auth", "token": "bob"})
+        assert ws.receive_json()["type"] == "chat.ready"
         ws.send_json({"type": "message.send", "text": "Dallas here"})
         event = ws.receive_json()
     assert event["type"] == "message.new" and event["message"]["text"] == "Dallas here"

@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const signIn = async () => {
-    if (!supabase) return router.push("/");
+    if (!supabase) return setError("Supabase login is not configured.");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setError(error.message);
     else router.push("/");
@@ -34,14 +34,14 @@ export default function LoginPage() {
         </div>
         {!supabase && (
           <p className="rounded-lg bg-amber-50 p-3 text-xs leading-snug text-amber-800">
-            Supabase isn&apos;t configured, so the app runs on demo data. Set the variables in <code>.env.local</code> to enable login.
+            Supabase isn&apos;t configured. Set the public URL and publishable key in <code>.env.local</code> to enable chat.
           </p>
         )}
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" autoComplete="email" className={field} />
         <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" autoComplete="current-password"
           onKeyDown={(e) => e.key === "Enter" && signIn()} className={field} />
         {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-        <PrimaryButton onClick={signIn} className="!mt-4">{supabase ? "Log in" : "Continue with demo data"}</PrimaryButton>
+        <PrimaryButton onClick={signIn} className="!mt-4">Log in</PrimaryButton>
       </div>
     </main>
   );

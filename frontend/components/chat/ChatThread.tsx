@@ -2,57 +2,106 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, CornerUpLeft, Image as ImageIcon, MapPin, Mic, Phone, Smile, Sticker, Video, X } from "lucide-react";
-import { memberById } from "@/mocks/demo-data";
-import type { Chat, Message } from "@/lib/types";
+import { apiFetch } from "@/lib/api";
+import { connectChat } from "@/lib/socket";
+import type { Chat, ChatMessage, Member, Message } from "@/lib/types";
 import { useTrip } from "@/lib/trip-context";
 import { Avatar, ChatAvatar } from "./Avatar";
 import TripChatCard from "@/components/trip/TripChatCard";
 import MessageBubble, { type BubblePos } from "./MessageBubble";
-import { CHAT_META, STAGE_LABEL, baseMessages, separators } from "./chat-meta";
+import { STAGE_LABEL } from "./chat-meta";
 
 const iconBtn = "flex size-9 items-center justify-center rounded-full text-foreground transition hover:bg-surface";
 
-export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () => void }) {
+function mergeMessages(current: ChatMessage[], incoming: ChatMessage[]) {
+  const byId = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()].sort((a, b) => a.sentAt.localeCompare(b.sentAt));
+}
+
+export default function ChatThread({ chat, me, members, onLatest, onBack }: {
+  chat: Chat; me: string; members: Record<string, Member>;
+  onLatest: (chatId: string, message: ChatMessage) => void; onBack: () => void;
+}) {
   const { stage, setStage, panelOpen, setPanelOpen } = useTrip();
   const [draft, setDraft] = useState("");
-  const [sentBy, setSentBy] = useState<Record<string, Message[]>>({});
+  const [stored, setStored] = useState<ChatMessage[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; who: string; text: string } | null>(null);
   const [quotes, setQuotes] = useState<Record<string, { who: string; text: string }>>({});
   const [reacted, setReacted] = useState<Record<string, boolean>>({});
   const endRef = useRef<HTMLDivElement>(null);
 
-  const sent = sentBy[chat.id] ?? [];
-  const messages = [...baseMessages(chat.id, stage), ...sent];
-  const seps = separators(chat.id);
+  const messages: Message[] = stored.map((message) => ({ id: message.id, from: message.from === me ? "me" : message.from, kind: "text", text: message.text }));
+  const seps: Record<number, string> = stored.length ? { 0: new Date(stored[0].sentAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) } : {};
   const lastMine = messages.at(-1)?.from === "me";
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [chat.id, messages.length, sent.length, stage]);
+  useEffect(() => {
+    let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let connection: Awaited<ReturnType<typeof connectChat>> | undefined;
+    const refresh = async () => {
+      try {
+        const list = await apiFetch<ChatMessage[]>(`/chats/${chat.id}/messages`);
+        if (cancelled) return;
+        setStored((current) => mergeMessages(current, list));
+        if (list.length) onLatest(chat.id, list.at(-1)!);
+        setError(null);
+      } catch (cause) {
+        if (!cancelled) setError(cause instanceof Error ? cause.message : "Could not load messages");
+      }
+    };
+    const subscribe = async () => {
+      try {
+        connection = await connectChat(chat.id, (event) => {
+          if (event.type !== "message.new" || cancelled) return;
+          setStored((current) => mergeMessages(current, [event.message]));
+          onLatest(chat.id, event.message);
+        }, () => {
+          if (!cancelled) retry = setTimeout(() => void subscribe(), 1500);
+        });
+        if (cancelled) connection.close();
+        else await refresh();
+      } catch {
+        if (!cancelled) retry = setTimeout(() => void subscribe(), 1500);
+      }
+    };
+    void refresh();
+    void subscribe();
+    return () => { cancelled = true; if (retry) clearTimeout(retry); connection?.close(); };
+  }, [chat.id, onLatest]);
 
-  const send = () => {
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [chat.id, stored.length, stage]);
+
+  const send = async () => {
     const t = draft.trim();
     if (!t) return;
-    const id = `u-${chat.id}-${sent.length}`;
-    setSentBy((s) => ({ ...s, [chat.id]: [...(s[chat.id] ?? []), { id, from: "me", kind: "text", text: t }] }));
-    if (replyTo) setQuotes((q) => ({ ...q, [id]: { who: replyTo.who, text: replyTo.text } }));
-    setReplyTo(null);
-    setDraft("");
+    try {
+      const message = await apiFetch<ChatMessage>(`/chats/${chat.id}/messages`, { method: "POST", body: JSON.stringify({ text: t }) });
+      setStored((current) => mergeMessages(current, [message]));
+      onLatest(chat.id, message);
+      if (replyTo) setQuotes((q) => ({ ...q, [message.id]: { who: replyTo.who, text: replyTo.text } }));
+      setReplyTo(null);
+      setDraft("");
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Message could not be sent");
+    }
   };
-  const reply = (m: Message) => setReplyTo({ id: m.id, who: m.from === "me" ? "yourself" : memberById(m.from).name, text: m.kind === "image" ? "Photo" : m.text });
+  const reply = (m: Message) => setReplyTo({ id: m.id, who: m.from === "me" ? "yourself" : members[m.from]?.name ?? "Member", text: m.kind === "image" ? "Photo" : m.text });
   const react = (id: string) => setReacted((r) => ({ ...r, [id]: !r[id] }));
 
-  const meta = CHAT_META[chat.id];
-  const subtitle = meta?.presence ?? chat.sub;
-  const online = !!meta?.online && !chat.group;
+  const subtitle = chat.sub;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-white">
       <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-line px-3 md:px-5">
         <button onClick={onBack} className={`${iconBtn} md:hidden`} aria-label="Back"><ArrowLeft size={22} /></button>
-        <ChatAvatar chat={chat} size={40} online={online} />
+        <ChatAvatar chat={chat} size={40} members={members} />
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-[15px] font-semibold">{chat.name}</p>
-          <p className={`flex items-center gap-1 truncate text-xs ${online ? "text-emerald-600" : "text-muted"}`}>
-            {online ? "Active now" : subtitle}
+          <p className="flex items-center gap-1 truncate text-xs text-muted">
+            {subtitle}
           </p>
         </div>
         <button className={iconBtn} aria-label="Voice call"><Phone size={20} strokeWidth={1.75} /></button>
@@ -84,9 +133,9 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
                 <div key={m.id} className="animate-in-fade">
                   {seps[i] && <p className="pb-3 pt-4 text-center text-xs font-medium text-muted">{seps[i]}</p>}
                   {!sameAsPrev && i > 0 && !seps[i] && <div className="h-2.5" />}
-                  {showName && <p className="mb-0.5 ml-10 text-[11px] text-muted">{memberById(m.from).name}</p>}
+                  {showName && <p className="mb-0.5 ml-10 text-[11px] text-muted">{members[m.from]?.name ?? "Member"}</p>}
                   <div className={`flex items-end gap-2 ${mine ? "justify-end" : ""}`}>
-                    {!mine && <span className="w-7 shrink-0">{!sameAsNext && chat.group ? <Avatar id={m.from} size={28} /> : null}</span>}
+                    {!mine && <span className="w-7 shrink-0">{!sameAsNext && chat.group ? <Avatar id={m.from} size={28} members={members} /> : null}</span>}
                     <div className={`flex min-w-0 flex-1 flex-col ${mine ? "items-end" : "items-start"}`}>
                       {quotes[m.id] && (
                         <p className="mb-0.5 max-w-[68%] truncate rounded-xl bg-surface px-3 py-1 text-xs text-muted">
@@ -128,12 +177,12 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
+            onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
             placeholder="Message…"
             className="min-w-0 flex-1 bg-transparent px-2 py-2.5 text-[15px] outline-none placeholder:text-muted "
           />
           {draft.trim() ? (
-            <button onClick={send} className="px-3 text-sm font-semibold text-brand">Send</button>
+            <button onClick={() => void send()} className="px-3 text-sm font-semibold text-brand">Send</button>
           ) : (
             <>
               <button className={iconBtn} aria-label="Voice note"><Mic size={21} strokeWidth={1.75} /></button>
@@ -142,6 +191,7 @@ export default function ChatThread({ chat, onBack }: { chat: Chat; onBack: () =>
             </>
           )}
         </div>
+        {error && <p role="alert" className="mt-1 px-3 text-xs text-red-600">{error}</p>}
       </div>
     </div>
   );

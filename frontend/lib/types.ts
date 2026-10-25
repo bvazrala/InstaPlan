@@ -1,12 +1,15 @@
 // Shared frontend types. Field names match the backend's camelCase JSON (see docs/api-contract.md).
 
-export type Member = { id: string; name: string; handle: string; hue: number; origin: string };
+export type Member = { id: string; name: string; handle: string; hue: number; origin: string | null };
 
 export type Chat = { id: string; name: string; sub: string; unread?: number; members: string[]; group?: boolean };
 
 export type Message =
   | { id: string; from: string; kind: "text"; text: string }
   | { id: string; from: string; kind: "image"; caption?: string };
+
+/** Stored group-chat message returned by FastAPI and sent in message.new events. */
+export type ChatMessage = { id: string; from: string; kind: "text"; text: string; sentAt: string };
 
 export type Fact = { id: string; field: string; value: string; by: string; src: string; required?: boolean };
 
@@ -43,7 +46,8 @@ export type SortKey = "cheapest" | "fastest" | "balanced" | "fairest";
 
 /** Events the backend pushes over the chat WebSocket. `private.*` events are only ever sent to their owner. */
 export type ServerEvent =
-  | { type: "message.new"; message: Message }
+  | { type: "chat.ready" }
+  | { type: "message.new"; message: ChatMessage }
   | { type: "trip.offer"; chatId: string }
   | { type: "trip.stage"; tripId: string; stage: Stage }
   | { type: "fact.updated"; tripId: string; fact: Fact }
