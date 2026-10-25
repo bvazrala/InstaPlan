@@ -1,0 +1,119 @@
+{
+  "search_metadata": {
+    "id": "flights_stage2_001",
+    "status": "Success",
+    "created_at": "2026-10-25T10:01:00Z"
+  },
+  "search_parameters": {
+    "engine": "google_flights",
+    "type": 1,
+    "departure_id": "AUS",
+    "arrival_id": "JFK",
+    "outbound_date": "2026-11-05",
+    "return_date": "2026-11-09",
+    "travel_class": 1,
+    "currency": "USD",
+    "hl": "en",
+    "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLIjB9abc"
+  },
+  "price_insights": {
+    "total_price": 697,
+    "currency": "USD"
+  },
+  "other_flights": [
+    {
+      "type": "Round trip",
+      "price": 697,
+      "total_duration": 1200,
+      "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB9b2c",
+      "flights": [
+        {
+          "direction": "outbound",
+          "airline": "American Airlines",
+          "flight_number": 416,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 210,
+          "travel_class": "Economy",
+          "airplane": "Boeing 737-800",
+          "legroom_cm": 31
+        },
+        {
+          "direction": "return",
+          "airline": "American Airlines",
+          "flight_number": 417,
+          "departure_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "arrival_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "duration": 230,
+          "travel_class": "Economy",
+          "airplane": "Boeing 737-800",
+          "legroom_cm": 31
+        }
+      ]
+    },
+    {
+      "type": "Round trip",
+      "price": 697,
+      "total_duration": 1260,
+      "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB4eXo",
+      "flights": [
+        {
+          "direction": "outbound",
+          "airline": "American Airlines",
+          "flight_number": 1180,
+          "departure_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "arrival_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "duration": 290,
+          "travel_class": "Economy",
+          "airplane": "Boeing 757-200",
+          "legroom_cm": 31
+        },
+        {
+          "direction": "return",
+          "airline": "American Airlines",
+          "flight_number": 419,
+          "departure_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "arrival_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "duration": 250,
+          "travel_class": "Economy",
+          "airplane": "Boeing 737-800",
+          "legroom_cm": 31
+        }
+      ]
+    },
+    {
+      "type": "Round trip",
+      "price": 697,
+      "total_duration": 1340,
+      "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjVxaWI",
+      "flights": [
+        {
+          "direction": "outbound",
+          "airline": "American Airlines",
+          "flight_number": 2772,
+          "departure_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "arrival_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "duration": 310,
+          "travel_class": "Economy",
+          "airplane": "Boeing 767-300",
+          "legroom_cm": 31
+        },
+        {
+          "direction": "return",
+          "airline": "American Airlines",
+          "flight_number": 421,
+          "departure_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "arrival_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "duration": 260,
+          "travel_class": "Economy",
+          "airplane": "Boeing 737 MAX 8",
+          "legroom_cm": 31
+        }
+      ]
+    }
+  ],
+  "airports": [
+    {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+    {"id": "JFK", "name": "John F. Kennedy International Airport"}
+  ]
+}
