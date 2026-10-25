@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/style.css">
   <style>
     /* Planner popup */
-    .modal-card{width:min(420px,92vw);padding:26px 26px 22px;font-size:13px;color:#242438}
+    .modal-card{width:min(520px,94vw);max-height:92vh;overflow:auto;padding:26px 26px 22px;font-size:13px;color:#242438}
     .modal-card h2{font-size:20px;letter-spacing:-.03em;margin:6px 0 4px}
     .modal-sub{margin:0 0 14px;color:#8a85a0;font-size:12px;line-height:1.5}
     .modal-close{font-size:20px;color:#8a85a0;width:28px;height:28px;border-radius:50%}.modal-close:hover{background:#f0edff}
@@ -21,6 +21,21 @@
     .radio-row span{display:block;text-align:center;padding:9px 6px;border:1px solid #dcd7ee;border-radius:10px;font-size:12px;font-weight:700;color:#6f7080;cursor:pointer}
     .radio-row input:checked+span{border-color:#7869e9;background:#f0edff;color:#5548bc}
     .radio-row input:focus-visible+span{box-shadow:0 0 0 3px #7869e933}
+    .cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .radio-group label.cat-card{position:relative;display:block;margin:0;padding:0;gap:0;border:1px solid #dcd7ee;border-radius:14px;overflow:hidden;cursor:pointer;background:#fff;transition:box-shadow .15s,border-color .15s}
+    .cat-card:hover{box-shadow:0 6px 18px #29214718}
+    .cat-card input{position:absolute;opacity:0;pointer-events:none}
+    .cat-card:has(input:checked){border-color:#6e5fda;box-shadow:0 0 0 3px #7869e933}
+    .cat-card:has(input:focus-visible){outline:2px solid #6e5fda;outline-offset:2px}
+    .cat-photo{display:grid;place-items:center;height:86px;background:linear-gradient(135deg,#ece8ff,#dfe9ff);background-size:cover;background-position:center;font-size:30px}
+    .cat-photo.has-photo i{display:none}.cat-photo i{font-style:normal}
+    .cat-name{display:block;padding:8px 12px 0;font-size:13px;font-weight:800;color:#242438}
+    .cat-sub{display:block;padding:1px 12px 10px;font-size:11px;color:#8a85a0}
+    .cat-card:has(input:checked) .cat-name{color:#5548bc}
+    #custom-wrap{margin-top:10px}
+    .planner-photo{width:46px;height:46px;border-radius:10px;flex:none;background:linear-gradient(135deg,#ece8ff,#dfe9ff);background-size:cover;background-position:center}
+    .cluster-photo{display:flex;align-items:flex-end;height:96px;margin:0 0 10px;border-radius:12px;background:#ece8ff;background-size:cover;background-position:center;overflow:hidden}
+    .cluster-photo span{margin:0 0 6px 8px;padding:2px 7px;border-radius:99px;background:#0009;color:#fff;font-size:10px}
     .modal-actions{display:flex;gap:10px;margin-top:20px}
     .ghost-btn,.primary-btn{flex:1;height:40px;border-radius:10px;font-size:13px;font-weight:700;border:1px solid #dcd7ee;background:#fff;color:#55556d;cursor:pointer}
     .primary-btn{background:#6e5fda;border-color:#6e5fda;color:#fff}.primary-btn:hover{background:#7b6ee6}.ghost-btn:hover{background:#f7f6fc}
@@ -69,7 +84,15 @@
         <p class="modal-sub">Anyone can start a plan. Muse listens to the chat and fills in the rest, and the group votes to lock it in.</p>
         <label class="field-label-block">Title<input id="title" class="text-input" maxlength="120" placeholder="e.g. Saturday dinner" required></label>
         <label class="field-label-block">Location <span class="optional">optional</span><span class="picker"><input id="location" class="text-input" maxlength="200" placeholder="Search for an exact place, or type a city" autocomplete="off"><span class="place-results"></span></span></label>
-        <fieldset class="radio-group"><legend>Type</legend><div class="radio-row"><label><input type="radio" name="topic" value="Dining" checked><span>Dining</span></label><label><input type="radio" name="topic" value="Travel"><span>Travel</span></label><label><input type="radio" name="topic" value="Entertainment"><span>Entertainment</span></label></div></fieldset>
+        <fieldset class="radio-group"><legend>Category</legend>
+          <div class="cat-grid">
+            <label class="cat-card"><input type="radio" name="topic" value="Dining" checked><span class="cat-photo" data-cat="Dining"><i>🍽</i></span><span class="cat-name">Dining</span><span class="cat-sub">Restaurants, cafés, takeout</span></label>
+            <label class="cat-card"><input type="radio" name="topic" value="Travel"><span class="cat-photo" data-cat="Travel"><i>✈️</i></span><span class="cat-name">Travel</span><span class="cat-sub">Trips, flights, stays</span></label>
+            <label class="cat-card"><input type="radio" name="topic" value="Entertainment"><span class="cat-photo" data-cat="Entertainment"><i>🎟</i></span><span class="cat-name">Entertainment</span><span class="cat-sub">Movies, concerts, games</span></label>
+            <label class="cat-card"><input type="radio" name="topic" value="Custom"><span class="cat-photo" data-cat="Custom"><i>✨</i></span><span class="cat-name" id="custom-name">Custom</span><span class="cat-sub">Make your own category</span></label>
+          </div>
+          <div id="custom-wrap" hidden><input id="custom-label" class="text-input" maxlength="40" placeholder="Name your category, e.g. Game night, Hiking, Study group"></div>
+        </fieldset>
         <div class="modal-actions"><button id="modal-cancel" class="ghost-btn" type="button">Cancel</button><button class="primary-btn" type="submit">Start planning</button></div>
       </form>
     </div>

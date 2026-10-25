@@ -215,3 +215,35 @@ def test_vote_requires_a_complete_plan():
     engine.start("Dinner", "Dining", "Austin")
     with pytest.raises(ValueError, match="Voting opens"):
         engine.vote("u1", True)
+
+
+def test_custom_category_needs_a_name_and_has_an_event_type_field():
+    with pytest.raises(ValueError, match="Name your category"):
+        new_template("Night", "Custom", "Austin")
+    with pytest.raises(ValueError, match="Name your category"):
+        new_template("Night", "Custom", "Austin", custom_label="<script>")
+    template = new_template("Night in", "Custom", "Austin", custom_label="Game night")
+    assert template["custom_label"] == "Game night" and new_template("T", "Dining", "x")["custom_label"] is None
+    result, decisions = apply_updates(template, [{"field": "event", "user_id": None, "value": "Board Games",
+                                                  "source_message_id": "m1"}], [{"id": "m1", "user_id": "u1"}])
+    assert decisions[0]["accepted"] and result["cluster"]["event_type"] == "board games"
+    assert missing_fields(template) == missing_fields(new_template("T", "Dining", "Austin"))  # custom never adds requirements
+
+
+def test_category_photos_are_looked_up_once_and_cached(tmp_path, monkeypatch):
+    from scripts.listening_lab import serp
+    calls = []
+    monkeypatch.setattr(serp, "CACHE", tmp_path / "images.json")
+    monkeypatch.setattr(serp, "configured", lambda: True)
+    monkeypatch.setattr(serp, "_fetch", lambda q: calls.append(q) or {"url": "https://x/y.jpg", "title": "t", "source": "s"})
+    real = serp.REAL_CATEGORY_IMAGE
+    assert real("  Game   Night ") == real("game night")
+    assert calls == ["game night"] and real("ab") is None  # too short: no request
+
+
+def test_start_attaches_a_photo_and_custom_label(monkeypatch):
+    from scripts.listening_lab import serp
+    monkeypatch.setattr(serp, "category_image", lambda q: {"url": "https://x/y.jpg", "title": "", "source": "s"})
+    engine = ListeningEngine(muse=FakeMuse())
+    state = engine.start("Night in", "Custom", "Austin", custom_label="Game night")
+    assert state["template"]["custom_label"] == "Game night" and state["template"]["category_image"]["source"] == "s"

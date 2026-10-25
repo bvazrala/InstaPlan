@@ -42,6 +42,9 @@ function renderUsers() {
   $("composer-avatar").style.background = person?.color ?? "#7968e9";
 }
 
+function categoryName(t) { return t?.topic === "Custom" ? (t.custom_label || "Custom") : (t?.topic ?? ""); }
+function photoStyle(image) { return image?.url ? `style="background-image:url('${escapeHtml(image.url)}')"` : ""; }
+
 function planSummary() {
   const t = state.template, w = t.where;
   const place = w.destination ? w.destination.name : w.search_area ? `Around ${w.search_area}` : "—";
@@ -75,7 +78,7 @@ function renderMessages() {
   const hadNewMessage = messages.at(-1)?.id !== lastMessageId;
   lastMessageId = messages.at(-1)?.id ?? null;
   const t = state?.template;
-  const started = t ? `<div class="planner-card"><span class="planner-icon">🗺</span><div><strong>${escapeHtml(t.title)}</strong><small>${escapeHtml(displayName(t.initiator))} started a ${escapeHtml(t.topic)} planner · Muse is listening</small></div></div>` : "";
+  const started = t ? `<div class="planner-card"><span class="planner-photo" ${photoStyle(t.category_image)} title="${escapeHtml(t.category_image?.source ?? "")}"></span><div><strong>${escapeHtml(t.title)}</strong><small>${escapeHtml(displayName(t.initiator))} started a ${escapeHtml(categoryName(t))} planner · Muse is listening</small></div></div>` : "";
   $("messages").innerHTML = started + (messages.length ? messages.map((message) => {
     const mine = message.user_id === activeUser;
     return `<div class="message-row ${mine ? "mine" : ""}">${mine ? "" : avatar(message.user_id)}<div class="message-body"><div class="message-meta">${escapeHtml(displayName(message.user_id))} · ${escapeHtml(new Date(message.sent_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</div><div class="bubble">${escapeHtml(message.text)}</div><div class="message-status">${escapeHtml(message.status === "listening" ? "Muse listening…" : message.status === "queued" ? "Queued" : message.status === "error" ? "Extraction failed" : "Processed")}</div></div></div>`;
@@ -152,7 +155,7 @@ function originsRow(w) {
 }
 function renderTemplate() {
   const t = state?.template;
-  $("topic-badge").textContent = t?.topic ?? "No topic";
+  $("topic-badge").textContent = t ? categoryName(t) : "No category";
   if (!t) { $("universal").innerHTML = ""; $("cluster").innerHTML = ""; seenValues = {}; return; }
   const w = t.where, c = t.cluster;
   $("universal").innerHTML = `<h3 class="section-heading">1. UNIVERSAL FIELDS</h3>`
@@ -169,13 +172,14 @@ function renderTemplate() {
     ;
   const rows = t.topic === "Dining" ? row("meal_type", "breakfast | lunch | dinner | snack | brunch | coffee", "Optional", c.meal_type, sourceFor("meal_type")) + row("cuisine", "List[String]", "Optional", c.cuisine, sourceFor("cuisine"))
     : t.topic === "Travel" ? row("trip_type", "flight | bus | train | …", "Optional", c.trip_type, sourceFor("trip_type")) + row("accommodation", "hotel | Airbnb | hostel | none", "Optional", c.accommodation, sourceFor("accommodation"))
+    : t.topic === "Custom" ? row("event_type", "Short description of this custom event", "Optional", c.event_type, sourceFor("event_type"))
     : row("activity_type", "movie | bowling | shopping | concert | …", "Optional", c.activity_type, sourceFor("activity_type"));
-  $("cluster").innerHTML = `<h3 class="section-heading">2. CLUSTER · ${escapeHtml(t.topic.toUpperCase())}</h3>${rows}`;
+  $("cluster").innerHTML = `<h3 class="section-heading">2. CLUSTER · ${escapeHtml(categoryName(t).toUpperCase())}</h3>${t.category_image ? `<div class="cluster-photo" ${photoStyle(t.category_image)}><span>${escapeHtml(t.category_image.source || "")}</span></div>` : ""}${rows}`;
 }
 
 function renderSummary() {
   const t = state?.template;
-  $("session-summary").innerHTML = t ? `<strong>${escapeHtml(t.title)}</strong><small>Started by ${escapeHtml(displayName(t.initiator))}</small><small>${escapeHtml(t.topic)}${t.where.destination || t.where.search_area ? " · " + escapeHtml(t.where.destination || t.where.search_area) : ""}</small>` : "<small>No active plan</small>";
+  $("session-summary").innerHTML = t ? `<strong>${escapeHtml(t.title)}</strong><small>Started by ${escapeHtml(displayName(t.initiator))}</small><small>${escapeHtml(categoryName(t))}${t.where.destination || t.where.search_area ? " · " + escapeHtml(t.where.destination || t.where.search_area) : ""}</small>` : "<small>No active plan</small>";
 }
 
 function renderNotes() {
@@ -230,8 +234,8 @@ $("start-modal").addEventListener("click", (event) => { if (event.target === $("
 $("session-form").addEventListener("submit", async (event) => {
   event.preventDefault(); showError("");
   try {
-    renderState(await post("/api/session", { title: $("title").value, topic: document.querySelector("input[name=topic]:checked").value, location: $("location").value, location_kind: modalPlace ? "destination" : "search_area", place_id: modalPlace?.place_id ?? "", user_id: activeUser }));
-    $("title").value = ""; $("location").value = ""; modalPlace = null;
+    renderState(await post("/api/session", { title: $("title").value, topic: document.querySelector("input[name=topic]:checked").value, custom_label: $("custom-label").value, location: $("location").value, location_kind: modalPlace ? "destination" : "search_area", place_id: modalPlace?.place_id ?? "", user_id: activeUser }));
+    $("title").value = ""; $("location").value = ""; $("custom-label").value = ""; modalPlace = null;
     closeModal(); $("message-input").focus();
   } catch (error) { showError(error.message); }
 });
@@ -293,4 +297,36 @@ document.addEventListener("click", async (event) => {
 document.addEventListener("change", async (event) => {
   if (event.target.id !== "threshold") return;
   try { renderState(await post("/api/threshold", { value: Number(event.target.value) })); } catch (error) { showError(error.message); }
+});
+
+// ---- Category cards: photo widgets from SerpApi Google Images (fetched and cached by the lab server) ----
+const CAT_EMOJI = { Dining: "🍽", Travel: "✈️", Entertainment: "🎟", Custom: "✨" };
+function setCardPhoto(cat, image) {
+  const el = document.querySelector(`.cat-photo[data-cat="${cat}"]`);
+  if (!el) return;
+  el.style.backgroundImage = image?.url ? `url('${image.url}')` : "";
+  el.classList.toggle("has-photo", Boolean(image?.url));
+  el.title = image?.source ? `Photo: ${image.source}` : "";
+}
+fetch("/api/categories").then((r) => r.json()).then((payload) => {
+  for (const [cat, image] of Object.entries(payload.images ?? {})) setCardPhoto(cat, image);
+}).catch(() => {});
+const syncCustom = () => {
+  const custom = document.querySelector("input[name=topic]:checked").value === "Custom";
+  $("custom-wrap").hidden = !custom;
+  if (custom) $("custom-label").focus();
+};
+document.querySelectorAll("input[name=topic]").forEach((r) => r.addEventListener("change", syncCustom));
+let customTimer = null;
+$("custom-label").addEventListener("input", () => {
+  clearTimeout(customTimer);
+  const label = $("custom-label").value.trim();
+  $("custom-name").textContent = label || "Custom";
+  customTimer = setTimeout(async () => {
+    if (label.length < 3) { setCardPhoto("Custom", null); return; }
+    try {
+      const payload = await (await fetch(`/api/category-image?q=${encodeURIComponent(label)}`)).json();
+      if ($("custom-label").value.trim() === label) setCardPhoto("Custom", payload.image);
+    } catch { /* the card keeps its emoji */ }
+  }, 700);
 });

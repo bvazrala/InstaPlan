@@ -52,7 +52,7 @@ class MuseClient:
 
         # Compact state: empty fields are omitted so the prompt stays small.
         state = {key: value for key, value in template.items()
-                 if key not in {"sources", "title", "initiator", "spoke"} and value}
+                 if key not in {"sources", "title", "initiator", "spoke", "category_image"} and value}
         where = template["where"]  # origins are device locations and never go to Muse
         state["where"] = {key: value for key, value in {
             "destination": (where["destination"] or {}).get("name"), "destination_hint": where["destination_hint"],
@@ -78,7 +78,7 @@ class MuseClient:
         where = template["where"]
         context = {
             "today_utc": datetime.now(UTC).date().isoformat(),
-            "topic": template["topic"], "group_size": len(NAMES),
+            "topic": template["topic"], "category_label": template.get("custom_label"), "group_size": len(NAMES),
             "location": (where["destination"] or {}).get("address") or where["search_area"],
             "destination_hint": where["destination_hint"],
             "group_home": template.get("base_location"),
