@@ -1,0 +1,111 @@
+{
+  "search_metadata": {
+    "id": "hotels_001",
+    "status": "Success",
+    "created_at": "2026-10-25T12:00:00Z"
+  },
+  "search_parameters": {
+    "engine": "google_hotels",
+    "q": "vacation rentals in New York City",
+    "check_in_date": "2026-11-05",
+    "check_out_date": "2026-11-09",
+    "adults": 4,
+    "currency": "USD",
+    "hl": "en",
+    "gl": "us"
+  },
+  "properties": [
+    {
+      "name": "Manhattan Loft on 5th Ave",
+      "type": "vacation rental",
+      "accommodation_type": "Vacation rental (apartment)",
+      "rate_per_night": {"before_taxes_fees": 198, "after_taxes_fees": 230, "display_price": 198, "extracted_before_taxes_fees": 198.50, "extracted_after_taxes_fees": 230.40},
+      "total_rate": {"before_taxes_fees": 792, "after_taxes_fees": 920, "display_price": 792, "extracted_before_taxes_fees": 794.00, "extracted_after_taxes_fees": 920.80},
+      "currency": "USD",
+      "gps_coordinates": {"latitude": 40.7580, "longitude": -73.9855},
+      "overall_rating": 4.6,
+      "reviews": 142,
+      "property_token": "manhattan_5th_ae_001",
+      "link": "https://www.booking.com/example1",
+      "amenities": ["Wifi", "Kitchen", "Washer", "Air conditioning"],
+      "images": [{"thumbnail": "https://example.com/thumb1.jpg"}],
+      "serpapi_property_details_link": "https://serpapi.com/property/manhattan_5th_ae_001"
+    },
+    {
+      "name": "Brooklyn Brownstone Studio",
+      "type": "vacation rental",
+      "accommodation_type": "Vacation rental (studio)",
+      "rate_per_night": {"before_taxes_fees": 145, "after_taxes_fees": 168, "display_price": 145, "extracted_before_taxes_fees": 144.75, "extracted_after_taxes_fees": 168.20},
+      "total_rate": null,
+      "currency": "USD",
+      "gps_coordinates": {"latitude": 40.6782, "longitude": -73.9442},
+      "overall_rating": 4.3,
+      "reviews": 87,
+      "property_token": "brooklyn_brown_002",
+      "link": "https://www.booking.com/example2",
+      "amenities": ["Wifi", "Kitchen"],
+      "images": [{"thumbnail": "https://example.com/thumb2.jpg"}],
+      "serpapi_property_details_link": "https://serpapi.com/property/brooklyn_brown_002"
+    },
+    {
+      "name": "Upper East Side 1BR",
+      "type": "vacation rental",
+      "accommodation_type": "Vacation rental (apartment)",
+      "rate_per_night": null,
+      "total_rate": {"before_taxes_fees": 650, "after_taxes_fees": 748, "display_price": 650, "extracted_before_taxes_fees": 652.00, "extracted_after_taxes_fees": 748.50},
+      "currency": "USD",
+      "gps_coordinates": {"latitude": 40.7736, "longitude": -73.9566},
+      "overall_rating": 4.7,
+      "reviews": 201,
+      "property_token": "ues_1br_003",
+      "link": "https://www.booking.com/example3",
+      "amenities": ["Wifi", "Kitchen", "Air conditioning", "Heating"],
+      "images": [{"thumbnail": "https://example.com/thumb3.jpg"}],
+      "serpapi_property_details_link": "https://serpapi.com/property/ues_1br_003"
+    },
+    {
+      "name": "Williamsburg Luxury Suite",
+      "type": "vacation rental",
+      "accommodation_type": "Vacation rental (condo)",
+      "rate_per_night": {"before_taxes_fees": 250, "after_taxes_fees": 295, "display_price": 250, "extracted_before_taxes_fees": 248.00, "extracted_after_taxes_fees": 295.60},
+      "total_rate": {"before_taxes_fees": 1000, "after_taxes_fees": 1182, "display_price": 1000, "extracted_before_taxes_fees": 992.00, "extracted_after_taxes_fees": 1182.40},
+      "currency": "USD",
+      "gps_coordinates": {"latitude": 40.7142, "longitude": -73.9614},
+      "overall_rating": null,
+      "reviews": null,
+      "property_token": "williamsburg_lux_004",
+      "link": "https://www.airbnb.com/example4",
+      "amenities": ["Wifi", "Kitchen", "Washer", "Dryer", "Gym access"],
+      "images": [{"thumbnail": "https://example.com/thumb4.jpg"}],
+      "serpapi_property_details_link": "https://serpapi.com/property/williamsburg_lux_004"
+    },
+    {
+      "name": "Queens Budget Apartment",
+      "type": "vacation rental",
+      "accommodation_type": "Vacation rental (apartment)",
+      "rate_per_night": {"before_taxes_fees": 85, "after_taxes_fees": 98, "display_price": 85},
+      "total_rate": {"before_taxes_fees": 340, "after_taxes_fees": 392, "display_price": 340, "extracted_before_taxes_fees": 340.00, "extracted_after_taxes_fees": 392.00},
+      "currency": "USD",
+      "gps_coordinates": {"latitude": 40.7282, "longitude": -73.7949},
+      "overall_rating": 3.9,
+      "reviews": 34,
+      "property_token": "queens_budget_005",
+      "link": null,
+      "amenities": ["Wifi"],
+      "images": [],
+      "serpapi_property_details_link": "https://serpapi.com/property/queens_budget_005"
+    }
+  ],
+  "ads": [
+    {
+      "name": "Sponsored Hotel NYC",
+      "type": "hotel",
+      "rate_per_night": {"before_taxes_fees": 180, "after_taxes_fees": 210},
+      "total_rate": {"before_taxes_fees": 720, "after_taxes_fees": 840},
+      "link": "https://ads.example.com/nyc"
+    }
+  ],
+  "serpapi_pagination": {
+    "current": 1
+  }
+}

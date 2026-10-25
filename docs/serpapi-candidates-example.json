@@ -1,0 +1,390 @@
+[
+  {
+    "id": "tc-94cd16e2dd81fec1",
+    "title": "New York City\n— Upper East Side 1BR",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Upper East Side 1BR",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 748.5,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 187.12,
+    "flight_price_usd": 697.0,
+    "total_per_person": 884.12,
+    "flight_status": "missing",
+    "booking_token": null,
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7736,-73.9566) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 1,
+      "array_name": "best_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440020+00:00"
+  },
+  {
+    "id": "tc-42e4f1fb2e0c98a4",
+    "title": "New York City\n— Upper East Side 1BR",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Upper East Side 1BR",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 748.5,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 187.12,
+    "flight_price_usd": 697.0,
+    "total_per_person": 884.12,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB9b2c",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7736,-73.9566) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440099+00:00"
+  },
+  {
+    "id": "tc-42e4f1fb2e0c98a4",
+    "title": "New York City\n— Upper East Side 1BR",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Upper East Side 1BR",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 748.5,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 187.12,
+    "flight_price_usd": 697.0,
+    "total_per_person": 884.12,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB4eXo",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7736,-73.9566) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440152+00:00"
+  },
+  {
+    "id": "tc-42e4f1fb2e0c98a4",
+    "title": "New York City\n— Upper East Side 1BR",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Upper East Side 1BR",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 748.5,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 187.12,
+    "flight_price_usd": 697.0,
+    "total_per_person": 884.12,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjVxaWI",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7736,-73.9566) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440208+00:00"
+  },
+  {
+    "id": "tc-168bdc9836dab357",
+    "title": "New York City\n— Manhattan Loft on 5th Ave",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Manhattan Loft on 5th Ave",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 920.8,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 230.2,
+    "flight_price_usd": 697.0,
+    "total_per_person": 927.2,
+    "flight_status": "missing",
+    "booking_token": null,
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7580,-73.9855) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 1,
+      "array_name": "best_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.439962+00:00"
+  },
+  {
+    "id": "tc-922c25d95bf26769",
+    "title": "New York City\n— Manhattan Loft on 5th Ave",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Manhattan Loft on 5th Ave",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 920.8,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 230.2,
+    "flight_price_usd": 697.0,
+    "total_per_person": 927.2,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB9b2c",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7580,-73.9855) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440053+00:00"
+  },
+  {
+    "id": "tc-922c25d95bf26769",
+    "title": "New York City\n— Manhattan Loft on 5th Ave",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Manhattan Loft on 5th Ave",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 920.8,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 230.2,
+    "flight_price_usd": 697.0,
+    "total_per_person": 927.2,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB4eXo",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7580,-73.9855) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440117+00:00"
+  },
+  {
+    "id": "tc-922c25d95bf26769",
+    "title": "New York City\n— Manhattan Loft on 5th Ave",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Manhattan Loft on 5th Ave",
+    "lodging_price_status": "quoted_with_taxes",
+    "lodging_total_after_tax": 920.8,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 230.2,
+    "flight_price_usd": 697.0,
+    "total_per_person": 927.2,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjVxaWI",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.7580,-73.9855) from google_hotels — origin only, verify against New York City"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440170+00:00"
+  },
+  {
+    "id": "tc-da7610e7c1f145f1",
+    "title": "New York City\n— Brooklyn Brownstone Studio",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Brooklyn Brownstone Studio",
+    "lodging_price_status": "estimated_before_taxes",
+    "lodging_total_after_tax": 580.0,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 145.0,
+    "flight_price_usd": 697.0,
+    "total_per_person": 842.0,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB9b2c",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.6782,-73.9442) from google_hotels — origin only, verify against New York City",
+      "lodging_nototal_rate_estimate"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440079+00:00"
+  },
+  {
+    "id": "tc-da7610e7c1f145f1",
+    "title": "New York City\n— Brooklyn Brownstone Studio",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Brooklyn Brownstone Studio",
+    "lodging_price_status": "estimated_before_taxes",
+    "lodging_total_after_tax": 580.0,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 145.0,
+    "flight_price_usd": 697.0,
+    "total_per_person": 842.0,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjB4eXo",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.6782,-73.9442) from google_hotels — origin only, verify against New York City",
+      "lodging_nototal_rate_estimate"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440135+00:00"
+  },
+  {
+    "id": "tc-da7610e7c1f145f1",
+    "title": "New York City\n— Brooklyn Brownstone Studio",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Brooklyn Brownstone Studio",
+    "lodging_price_status": "estimated_before_taxes",
+    "lodging_total_after_tax": 580.0,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 145.0,
+    "flight_price_usd": 697.0,
+    "total_per_person": 842.0,
+    "flight_status": "complete",
+    "booking_token": "eyJib29raW5nIjoiQUVTdGFnZTIiMjVxaWI",
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.6782,-73.9442) from google_hotels — origin only, verify against New York City",
+      "lodging_nototal_rate_estimate"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 2,
+      "array_name": "other_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.440188+00:00"
+  },
+  {
+    "id": "tc-a62ae2e4b329a64f",
+    "title": "New York City\n— Brooklyn Brownstone Studio",
+    "place": "New York City",
+    "dates": "2026-11-05..2026-11-09",
+    "nights": 4,
+    "lodging_name": "Brooklyn Brownstone Studio",
+    "lodging_price_status": "estimated_before_taxes",
+    "lodging_total_after_tax": 580.0,
+    "occupancy_adults": null,
+    "capacity_verified": false,
+    "lodging_per_person": 145.0,
+    "flight_price_usd": 697.0,
+    "total_per_person": 842.0,
+    "flight_status": "missing",
+    "booking_token": null,
+    "capacity_unverified": true,
+    "currency": "USD",
+    "warnings": [
+      "coordinates (40.6782,-73.9442) from google_hotels — origin only, verify against New York City",
+      "lodging_nototal_rate_estimate"
+    ],
+    "lodging_source": {
+      "engine": "google_hotels",
+      "array_name": "properties"
+    },
+    "flight_source": {
+      "engine": "google_flights",
+      "stage": 1,
+      "array_name": "best_flights"
+    },
+    "priced_at": "2026-10-25T07:26:48.439996+00:00"
+  }
+]

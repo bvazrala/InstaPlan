@@ -1,0 +1,108 @@
+{
+  "search_metadata": {
+    "id": "maps_001",
+    "status": "Success",
+    "created_at": "2026-10-25T14:00:00Z"
+  },
+  "search_parameters": {
+    "engine": "google_maps",
+    "type": "search",
+    "q": "restaurants in New York City",
+    "hl": "en"
+  },
+  "local_results": [
+    {
+      "position": 1,
+      "title": "Le Coucou",
+      "type": "French restaurant",
+      "types": ["French restaurant", "Fine dining", "Restaurant"],
+      "rating": 4.5,
+      "reviews": 328,
+      "price": "$$$$",
+      "address": "138 Lafayette St, New York, NY 10013",
+      "gps_coordinates": {"latitude": 40.7183, "longitude": -73.9967},
+      "place_id": "ChIJLeCoucouNYC001",
+      "data_id": "0x89c25a1b:0xabc001def",
+      "data_cid": "1234567890123456789",
+      "phone": "+1 212-555-0101",
+      "website": "https://lecoucunyc.com",
+      "open_state": "Open ⋅ Closes 10 PM",
+      "hours": {"monday": "12 PM–10 PM"},
+      "operating_hours": {"saturday": "12 PM–10 PM"},
+      "reserve_a_table": true,
+      "thumbnail": "https://example.com/lecoucou_thumb.jpg"
+    },
+    {
+      "position": 2,
+      "title": "Katz's Delicatessen",
+      "type": "Deli",
+      "types": ["Deli", "Sandwich shop", "Restaurant"],
+      "rating": 4.6,
+      "reviews": 15823,
+      "address": "205 E Houston St, New York, NY 10002",
+      "gps_coordinates": {"latitude": 40.7223, "longitude": -73.9873},
+      "place_id": "ChIJKatzDeliNyc002",
+      "data_id": "0x89c25a1b:0xabc002def",
+      "data_cid": "1234567890123456790",
+      "phone": "+1 212-555-0202",
+      "website": "https://katzsdelicatessen.com",
+      "open_state": "Open ⋅ Closes 10:45 PM",
+      "hours": {"monday": "8 AM–10:45 PM (closed Sundays)"},
+      "operating_hours": {},
+      "reviews_link": "https://serpapi.com/reviews/ChIJKatzDeliNyc002"
+    },
+    {
+      "position": 3,
+      "title": "Joe's Pizza",
+      "type": "Pizza restaurant",
+      "types": ["Pizza restaurant", "Ice cream shop"],
+      "rating": 4.5,
+      "reviews": 6721,
+      "price": "$",
+      "address": "7 Carmine St, New York, NY 10014",
+      "gps_coordinates": {"latitude": 40.7306, "longitude": -74.0021},
+      "place_id": "ChIJOePizzaNYC003",
+      "data_id": "0x89c25a1b:0xabc003def",
+      "data_cid": "1234567890123456791",
+      "phone": "+1 212-555-0303",
+      "website": "https://joespizzanyc.com",
+      "open_state": "Open 24 hours",
+      "hours": {"monday": "24 hours"},
+      "operating_hours": {}
+    },
+    {
+      "position": 4,
+      "title": "Eleven Madison Park",
+      "type": "New American restaurant",
+      "types": ["New American restaurant", "Fine dining"],
+      "rating": 4.4,
+      "reviews": 2103,
+      "price": "$$$$",
+      "address": "11 Madison Ave, New York, NY 10010",
+      "gps_coordinates": {"latitude": 40.7425, "longitude": -73.9871},
+      "place_id": "ChIJElevenParkNYC004",
+      "data_id": "0x89c25a1b:0xabc004def",
+      "data_cid": "1234567890123456792"
+    },
+    {
+      "position": 5,
+      "title": "Shake Shack Madison Square Park",
+      "type": "Burger restaurant",
+      "types": ["Burger restaurant", "Fast food"],
+      "rating": 4.3,
+      "reviews": 9412,
+      "price": "$$",
+      "address": "Madison Ave & E 23rd St, New York, NY 10010",
+      "gps_coordinates": {"latitude": 40.7425, "longitude": -73.9869},
+      "place_id": "ChIJSakeShackNYC005",
+      "data_id": "0x89c25a1b:0xabc005def",
+      "data_cid": "1234567890123456793",
+      "phone": "+1 212-555-0505",
+      "open_state": "Open ⋅ Closes 11 PM"
+    }
+  ],
+  "ads": [],
+  "serpapi_pagination": {
+    "current": 1
+  }
+}

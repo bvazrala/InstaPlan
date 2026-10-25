@@ -1,0 +1,166 @@
+{
+  "search_metadata": {
+    "id": "flights_stage1_001",
+    "status": "Success",
+    "created_at": "2026-10-25T10:00:00Z"
+  },
+  "search_parameters": {
+    "engine": "google_flights",
+    "type": 1,
+    "departure_id": "AUS",
+    "arrival_id": "JFK",
+    "outbound_date": "2026-11-05",
+    "return_date": "2026-11-09",
+    "travel_class": 1,
+    "currency": "USD",
+    "hl": "en"
+  },
+  "price_insights": {
+    "lowest_price": 629,
+    "typical_price_range": [499, 750],
+    "price_level": "high",
+    "price_history": [[1730000000, 520], [1730100000, 545], [1730200000, 610]]
+  },
+  "airports": [
+    {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+    {"id": "JFK", "name": "John F. Kennedy International Airport"},
+    {"id": "FLL", "name": "Fort Lauderdale-Hollywood International Airport"}
+  ],
+  "best_flights": [
+    {
+      "type": "Round trip",
+      "price": 697,
+      "total_duration": 540,
+      "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport", "time": "2026-11-05 06:47"},
+      "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport", "time": "2026-11-05 12:07"},
+      "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLIjB9abc",
+      "flights": [
+        {
+          "airline": "American Airlines",
+          "flight_number": 416,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 210,
+          "travel_class": "Economy",
+          "airplane": "Boeing 737-800",
+          "legroom_cm": 31
+        }
+      ]
+    },
+    {
+      "type": "Round trip",
+      "price": 709,
+      "total_duration": 600,
+      "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport", "time": "2026-11-05 08:30"},
+      "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport", "time": "2026-11-05 14:30"},
+      "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLMjB9def",
+      "flights": [
+        {
+          "airline": "Delta Air Lines",
+          "flight_number": 1205,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 240,
+          "travel_class": "Economy",
+          "airplane": "Airbus A321neo",
+          "legroom_cm": 32
+        }
+      ]
+    },
+    {
+      "type": "Round trip",
+      "price": 725,
+      "total_duration": 580,
+      "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport", "time": "2026-11-05 11:15"},
+      "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport", "time": "2026-11-05 17:35"},
+      "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLNTB9ghi",
+      "flights": [
+        {
+          "airline": "United Airlines",
+          "flight_number": 2034,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 260,
+          "travel_class": "Economy",
+          "airplane": "Boeing 757-200",
+          "legroom_cm": 30
+        }
+      ]
+    }
+  ],
+  "other_flights": [
+    {
+      "type": "Multi-city",
+      "price": 649,
+      "total_duration": 810,
+      "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport", "time": "2026-11-05 05:00"},
+      "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport", "time": "2026-11-05 17:30"},
+      "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLNjB9am4",
+      "flights": [
+        {
+          "airline": "JetBlue Airways",
+          "flight_number": 666,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "FLL", "name": "Fort Lauderdale-Hollywood International Airport"},
+          "duration": 290,
+          "travel_class": "Economy",
+          "airplane": "Airbus A320",
+          "legroom_cm": 32
+        },
+        {
+          "airline": "JetBlue Airways",
+          "flight_number": 789,
+          "departure_airport": {"id": "FLL", "name": "Fort Lauderdale-Hollywood International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 180,
+          "travel_class": "Economy",
+          "airplane": "Airbus A320",
+          "legroom_cm": 31
+        }
+      ]
+    },
+    {
+      "type": "Round trip",
+      "price": 685,
+      "total_duration": 640,
+      "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport", "time": "2026-11-05 14:00"},
+      "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport", "time": "2026-11-05 20:40"},
+      "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLODB9a2w",
+      "flights": [
+        {
+          "airline": "American Airlines",
+          "flight_number": 1523,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 300,
+          "travel_class": "Economy",
+          "airplane": "Boeing 737 MAX 8",
+          "legroom_cm": 31
+        }
+      ]
+    },
+    {
+      "type": "Round trip",
+      "price": 910,
+      "total_duration": 520,
+      "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport", "time": "2026-11-05 09:00"},
+      "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport", "time": "2026-11-05 14:20"},
+      "departure_token": "eyJyb3VuZFRyaXAiOiJBVVMtSkZLMTB9bW4",
+      "flights": [
+        {
+          "airline": "Delta Air Lines",
+          "flight_number": 567,
+          "departure_airport": {"id": "AUS", "name": "Austin-Bergstrom International Airport"},
+          "arrival_airport": {"id": "JFK", "name": "John F. Kennedy International Airport"},
+          "duration": 200,
+          "travel_class": "Premium Economy",
+          "airplane": "Airbus A330-900neo",
+          "legroom_cm": 38
+        }
+      ]
+    }
+  ],
+  "serpapi_pagination": {
+    "current": 1
+  }
+}

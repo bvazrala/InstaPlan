@@ -1,0 +1,107 @@
+{
+  "search_metadata": {
+    "id": "search_001",
+    "status": "Success",
+    "created_at": "2026-10-25T18:00:00Z"
+  },
+  "search_parameters": {
+    "engine": "google",
+    "q": "budget friendly attractions in New York City",
+    "gl": "us",
+    "hl": "en"
+  },
+  "organic_results": [
+    {
+      "position": 1,
+      "title": "50 Free Things to Do in NYC - Time Out",
+      "link": "https://www.timeout.com/newyork/things-to-do/free-things-new-york-city",
+      "redirect_link": "https://www.google.com/url?q=https%3A//time",
+      "snippet": "From the High Line to Central Park, here are the best free activities across all five boroughs that won't cost you a penny.",
+      "date": "Sep 15, 2026",
+      "source": "Time Out"
+    },
+    {
+      "position": 2,
+      "title": "Budget Travel Guide: NYC on $100 Day - Lonely Planet",
+      "link": "https://www.lonelyplanet.com/articles/budget-nyc-guide",
+      "snippet": "Learn how to experience Manhattan and beyond without breaking the bank. We cover free museums, cheap eats.",
+      "date": "Aug 23, 2026",
+      "source": "Lonely Planet"
+    },
+    {
+      "position": 3,
+      "title": "Free Museums in NYC - Wikipedia",
+      "link": "https://en.wikipedia.org/wiki/Free_museums_New_York_City",
+      "snippet": "New York City has several museums with pay-what-you-wish or free admission policies including the American Museum of Natural History.",
+      "source": "Wikipedia"
+    },
+    {
+      "position": 4,
+      "title": "Best Free Walking Tours - NYC Go",
+      "link": "https://www.nyxcgo.com/free-walking-tours",
+      "redirect_link": "https://www.google.com/url?q=https%3A//ny",
+      "snippet": "Official NYC tourism recommendations for free walking tours across Manhattan, Brooklyn and other boroughs.",
+      "date": "Oct 1, 2026",
+      "source": "NYCgo"
+    },
+    {
+      "position": 5,
+      "title": "Cheap Eats NYC - Eater NY",
+      "link": "https://ny.eater.com/maps/cheapest-eats-new-york",
+      "snippet": "Slices for $2, dollar pizza deals, and budget-friendly bodegs. Here is where to eat on a tight NYC itinerary.",
+      "date": "Jul 15, 2026",
+      "source": "Eater NY"
+    },
+    {
+      "position": 6,
+      "title": "Free Staten Island Ferry & Harbor Views - NYC Parks",
+      "link": "https://www.nycgovparks.org/ferry",
+      "snippet": "The Staten Island Ferry is completely free and offers some of the best harbor views and Statue of Liberty sightseeing.",
+      "source": "NYC Parks"
+    },
+    {
+      "position": 7,
+      "title": "Brooklyn Bridge Walk & DUMBO - Guide",
+      "link": "https://www.example.com/brooklyn-bridge-guide",
+      "snippet": "Walking the Brooklyn Bridge is free. Explore DUMBO afterward for street art and Hudson River views.",
+      "source": "Travel Blog"
+    },
+    {
+      "position": 8,
+      "title": "NYC Library Rose Main Reading Room - Free Tour Tips",
+      "link": "https://www.nypl.org/visit/rosenthal",
+      "snippet": "The New York Public Library's Rose Reading Room is open to the public — grand architecture for free.",
+      "source": "NYPL"
+    },
+    {
+      "position": 9,
+      "title": "Central Park Free Events Calendar 2026",
+      "link": "https://www.centralpark.com/events-calendar-2026",
+      "snippet": "Open-air concerts, Shakespeare in the Park, outdoor movies — check Central Park's free events for your visit dates.",
+      "date": "Jun 10, 2026",
+      "source": "CentralPark.com"
+    }
+  ],
+  "ai_overview": {
+    "snippet": "New York City offers numerous free or budget-friendly attractions including Central Park, the Staten Island Ferry, public libraries, and neighborhood walking tours.",
+    "source": {"title": "Wikipedia", "link": "https://en.wikipedia.org/wiki/Free_museums_New_York_City"}
+  },
+  "related_questions": [
+    {
+      "question": "What is the cheapest thing to do in NYC?",
+      "answer": "Walking across the Brooklyn Bridge or taking the Staten Island Ferry are both free with iconic views.",
+      "source": {"title": "Reddit r/nyc", "link": "https://www.reddit.com/r/nyc/cheap-activities"}
+    },
+    {
+      "question": "What are the best free museums in NYC?",
+      "answer": "The American Museum of Natural History, Smithsonian National Museum of Natural History, and the Met have pay-what-you-wish hours for NY residents.",
+      "source": {"title": "Time Out", "link": "https://www.timeout.com/museums/free"}
+    }
+  ],
+  "related_searches": [
+    {"query": "free things to do in NYC at night"},
+    {"query": "budget accommodations Manhattan"},
+    {"query": "cheap eats near Times Square"},
+    {"query": "free walking tour central park"}
+  ]
+}

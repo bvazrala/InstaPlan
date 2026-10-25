@@ -1,0 +1,82 @@
+{
+  "search_metadata": {
+    "id": "events_001",
+    "status": "Success",
+    "created_at": "2026-10-25T16:00:00Z"
+  },
+  "search_parameters": {
+    "engine": "google_events",
+    "q": "events in New York",
+    "location": "New York, NY",
+    "start_date": "2026-11-05",
+    "end_date": "2026-11-09",
+    "hl": "en",
+    "gl": "us"
+  },
+  "events_results": [
+    {
+      "title": "Jazz at Lincoln Center",
+      "date": {"start_date": "Nov 5", "when": "Nov 5, 7:30 PM"},
+      "venue": {"name": "Rose Theater, Lincoln Center", "link": "https://www.jalcdigital.com/rose/theater"},
+      "address": ["1041 7th Ave", "New York, NY 10019"],
+      "ticket_info": [
+        {"source": "Ticketmaster", "link": "https://www.ticketmaster.com/example-jazz", "link_type": "official"},
+        {"source": "Viator", "link": "https://www.viator.com/example-jazz", "link_type": "partner"}
+      ],
+      "event_token": "evt_jazh_lc_001",
+      "serpapi_event_details_link": "https://serpapi.com/event/evt_jazh_lc_001",
+      "thumbnail": "https://example.com/jazz_thumb.jpg"
+    },
+    {
+      "title": "Broadway: The Book of Mormon",
+      "date": {"start_date": "Nov 6", "when": "Nov 6, 2:00 PM"},
+      "venue": {"name": "Eugene O'Neill Theatre", "link": "https://www.broadway.com/book-of-mormon"},
+      "address": ["230 W 49th St", "New York, NY 10019"],
+      "ticket_info": [
+        {"source": "Broadway.com", "link": "https://www.broadway.com/example-mormon", "link_type": "official"},
+        {"source": "Vivid Seats", "link": "https://www.vividseats.com/example-mormon", "link_type": "partner"}
+      ],
+      "event_token": "evt_mormon_eo_002",
+      "serpapi_event_details_link": "https://serpapi.com/event/evt_mormon_eo_002"
+    },
+    {
+      "title": "NYC Food & Wine Festival",
+      "date": {"start_date": "Nov 7", "when": "Nov 7, 12:00 PM"},
+      "venue": {"name": "Javits Center", "link": "https://www.nyfoodwine.com"},
+      "address": ["429 33rd St", "New York, NY 10001"],
+      "ticket_info": [
+        {"source": "Eventbrite", "link": "https://www.eventbrite.com/example-food-wine", "link_type": "official"}
+      ],
+      "event_token": "evt_f&w_jav_003",
+      "serpapi_event_details_link": "https://serpapi.com/event/evt_fw_jav_003"
+    },
+    {
+      "title": "Museum of Modern Art: Evening Open",
+      "date": {"start_date": "Nov 8", "when": "Nov 8, 6:00 PM"},
+      "venue": {"name": "MoMA", "link": "https://www.moma.org/visit"},
+      "address": ["11 W 53rd St", "New York, NY 10019"],
+      "ticket_info": [
+        {"source": "MoMA official", "link": "https://www.moma.org/tickets", "link_type": "official"}
+      ],
+      "event_token": "evt_moma_even_004",
+      "serpapi_event_details_link": "https://serpapi.com/event/evt_moma_even_004"
+    },
+    {
+      "title": "New Year's Eve Preview Concert Central Park",
+      "date": {"start_date": "Dec 31", "when": "Dec 31, 8:00 PM"},
+      "venue": {"name": "Central Park SummerStage", "link": "https://www.summerstage.org"},
+      "address": ["Central Park", "New York, NY"],
+      "ticket_info": [
+        {"source": "Eventbrite", "link": "https://www.eventbrite.com/example-nye", "link_type": "official"}
+      ],
+      "event_token": "evt_nye_cp_005",
+      "serpapi_event_details_link": "https://serpapi.com/event/evt_nye_cp_005"
+    }
+  ],
+  "events_map": {
+    "bounding_box": {"south": 40.496, "north": 40.825, "west": -74.259, "east": -73.700}
+  },
+  "serpapi_pagination": {
+    "current": 1
+  }
+}
