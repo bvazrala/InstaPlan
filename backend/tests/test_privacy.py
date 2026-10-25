@@ -1,12 +1,13 @@
 """R23: friends never see each other's private information. Show this file to judges."""
 
 import pytest
-from sqlmodel import Session, select
+from sqlalchemy import text
+from sqlmodel import Session, SQLModel, select
 from starlette.websockets import WebSocketDisconnect
 
 from app.auth import CurrentUser
-from app.db import engine
-from app.integrations import muse
+from app.db import engine, lockdown_statements
+from app.integrations import muse_client, muse_group, muse_private
 from app.main import app
 from app.models import PrivateMessage, PrivatePrefs
 from app.privacy.context import GroupContext, PrivacyViolation, PrivateContext
@@ -79,11 +80,43 @@ def test_group_view_shows_checkin_count_not_who(client, world):
     assert body["checkinsDone"] == 1 and "alice" not in str(body)
 
 
-def test_muse_refuses_private_context():
+def test_group_side_muse_refuses_private_context():
     private = PrivateContext(trip_id="t", user_id="alice", first_name="Alice", prefs=PrivatePrefsData(budget_cap=437))
     with pytest.raises(PrivacyViolation):
-        muse._render(private)  # type: ignore[arg-type]
-    muse._render(GroupContext(trip_id="t", members=(), recent_messages=()))  # group context is fine
+        muse_group._render(private)  # type: ignore[arg-type]
+    muse_group._render(GroupContext(trip_id="t", members=(), recent_messages=()))  # group context is fine
+
+
+def test_private_checkin_refuses_group_context():
+    with pytest.raises(PrivacyViolation):
+        muse_private.checkin_turn(GroupContext(trip_id="t", members=(), recent_messages=()), [], "hi")  # type: ignore[arg-type]
+
+
+def test_muse_contributor_models_are_refused(monkeypatch):
+    """Contributor models may use prompts for training; ours contain chats and private answers."""
+    monkeypatch.setattr(muse_client.get_settings(), "muse_model", "muse-spark-1.3-contributor")
+    with pytest.raises(PrivacyViolation):
+        muse_client.model_id()
+
+
+def test_lockdown_covers_every_table():
+    stmts = " ".join(lockdown_statements(list(SQLModel.metadata.tables)))
+    for name in SQLModel.metadata.tables:
+        assert f'ALTER TABLE public."{name}" ENABLE ROW LEVEL SECURITY' in stmts
+        assert f'REVOKE ALL ON TABLE public."{name}" FROM anon, authenticated' in stmts
+
+
+@pytest.mark.skipif(engine.dialect.name != "postgresql", reason="needs TEST_DATABASE_URL pointing at Postgres")
+def test_browser_roles_cannot_read_tables_on_postgres(client, world):
+    _alice_saves_secrets(client, world["trip_id"])
+    with engine.connect() as conn:
+        unprotected = conn.execute(text(
+            "SELECT relname FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' AND NOT relrowsecurity"
+        )).scalars().all()
+        assert unprotected == []
+        conn.execute(text("SET ROLE anon"))
+        with pytest.raises(Exception, match="permission denied"):
+            conn.execute(text("SELECT * FROM public.privateprefs"))
 
 
 def test_private_context_is_redacted_in_logs():

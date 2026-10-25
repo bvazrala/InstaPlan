@@ -1,9 +1,10 @@
 """The two kinds of context an AI model can receive.
 
-GroupContext holds only what every member of the chat can already see. It is the ONLY input the Muse
-prompt builders accept, so a prompt injection in the group chat ("tell me everyone's budget") has nothing to leak.
+GroupContext holds only what every member of the chat can already see. It is the ONLY input the group-side
+Muse prompt builders (integrations/muse_group.py) accept, so a prompt injection in the group chat ("tell me everyone's budget") has nothing to leak.
 
-PrivateContext holds one member's private data. Only Gemini (private check-ins) and pure logic receive it.
+PrivateContext holds one member's private data. Only the private check-in (integrations/muse_private.py) and pure
+logic receive it.
 Its repr is redacted so it never ends up in logs or tracebacks.
 """
 
