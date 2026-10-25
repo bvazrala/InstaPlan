@@ -106,7 +106,7 @@ instaplan/
 
 ## Getting started
 
-**You need:** Node 20.9+, Python 3.11+, and (when you're ready for real login) a Supabase project: follow [docs/supabase-setup.md](docs/supabase-setup.md). Without keys, the frontend runs on demo data and the backend on SQLite.
+**You need:** Node 20.9+, Python 3.11+, and a Supabase project for authenticated chat: follow [docs/supabase-setup.md](docs/supabase-setup.md). The frontend does not substitute demo chat data when authentication is unavailable.
 
 ### Backend
 
@@ -182,7 +182,7 @@ Requirement ids (R1–R23) match the [MVP requirements doc](https://claude.ai/ar
 | Feature | Req | Backend | Frontend |
 | --- | --- | --- | --- |
 | Login | R20 | Done (`auth.py`) | Done (`/login`); add session guard |
-| Real-time group chat | R21 | Done (REST + WebSocket) | Wire `lib/socket.ts` into `ChatThread` |
+| Real-time group chat | R21 | Done (REST + WebSocket) | Done: backend chat list, members, history, sends, and live updates |
 | Start trip, trip-intent offer | R1, R2 | Done (keyword check + `trip.offer` event) | Wire |
 | Facts from chat, live trip card | R3, R4 | Pipeline wired to Muse; tune `prompts/extract_facts.md` | Wire |
 | Edit or delete a fact | R5 | Done | Wire the pencil button |

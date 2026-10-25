@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { MapPin, Search, SquarePen } from "lucide-react";
-import type { Chat } from "@/lib/types";
+import type { Chat, ChatMessage, Member } from "@/lib/types";
 import { useTrip } from "@/lib/trip-context";
 import { ChatAvatar } from "./Avatar";
 import { Logo } from "./NavRail";
-import { CHAT_META, STAGE_LABEL, previewText } from "./chat-meta";
+import { STAGE_LABEL } from "./chat-meta";
 
 const TABS = [
   { id: "all", label: "All" },
@@ -15,7 +15,10 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
 
-export default function ChatList({ chats, activeId, unreadIds, onSelect }: { chats: Chat[]; activeId: string; unreadIds: string[]; onSelect: (id: string) => void }) {
+export default function ChatList({ chats, activeId, unreadIds, onSelect, members, me, lastMessages }: {
+  chats: Chat[]; activeId: string; unreadIds: string[]; onSelect: (id: string) => void;
+  members: Record<string, Member>; me: string; lastMessages: Record<string, ChatMessage>;
+}) {
   const { tripOf } = useTrip();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("all");
@@ -74,7 +77,7 @@ export default function ChatList({ chats, activeId, unreadIds, onSelect }: { cha
                 onClick={() => onSelect(c.id)}
                 className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition md:px-5 ${isActive ? "bg-surface" : "hover:bg-surface/70"}`}
               >
-                <ChatAvatar chat={c} size={52} online={!!CHAT_META[c.id]?.online && !c.group} />
+                <ChatAvatar chat={c} size={52} members={members} />
                 <span className="min-w-0 flex-1">
                   <span className={`block truncate text-[15px] ${unread ? "font-semibold" : "font-medium"}`}>{c.name}</span>
                   <span className={`flex items-center gap-1 text-[13px] ${unread ? "font-semibold text-foreground" : "text-muted"}`}>
@@ -83,8 +86,7 @@ export default function ChatList({ chats, activeId, unreadIds, onSelect }: { cha
                         <MapPin size={10} /> {STAGE_LABEL[stage as Exclude<typeof stage, "idle">]}
                       </span>
                     )}
-                    <span className="truncate">{previewText(c, stage)}</span>
-                    <span className="shrink-0 font-normal text-muted">· {CHAT_META[c.id]?.time}</span>
+                    <span className="truncate">{lastMessages[c.id] ? `${lastMessages[c.id].from === me ? "You" : members[lastMessages[c.id].from]?.name ?? "Member"}: ${lastMessages[c.id].text}` : c.sub}</span>
                   </span>
                 </span>
                 {unread && <span className="size-2.5 shrink-0 rounded-full bg-brand" aria-label="Unread" />}

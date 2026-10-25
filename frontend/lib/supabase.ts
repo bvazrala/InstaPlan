@@ -4,8 +4,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-/** null until Supabase env vars are set; the app then runs on demo data without login. */
-export const supabase: SupabaseClient | null = url && key ? createClient(url, key) : null;
+/** null until valid Supabase public settings are configured. */
+export const supabase: SupabaseClient | null = url && key && /^https?:\/\/[^\s/\[\]]+/.test(url) ? createClient(url, key) : null;
 
 /** The current user's access token, sent to the backend as a Bearer token. */
 export async function getAccessToken(): Promise<string | null> {

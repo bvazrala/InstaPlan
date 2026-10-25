@@ -50,11 +50,13 @@ The agreement between `frontend/` and `backend/`. Change it, `backend/app/schema
 1. Connect, then send `{ "type": "auth", "token": "<access token>" }` as the first message within 10 seconds. The token is never put in the URL.
 2. Non-members and bad tokens are disconnected with code 1008.
 3. Send chat messages with `{ "type": "message.send", "text": "..." }`.
+4. After authentication and membership checks, the server sends `chat.ready`. Fetch messages then to close the gap between initial load and joining the live channel.
 
 **Server → client events.** Group events go to everyone in the chat. `private.*` events go only to their owner's connections.
 
 | Event | Payload | Sent to |
 | --- | --- | --- |
+| `chat.ready` | `{}` | this connection |
 | `message.new` | `{ message: Message }` | chat |
 | `trip.offer` | `{ chatId }` | chat |
 | `trip.stage` | `{ tripId, stage }` | chat |

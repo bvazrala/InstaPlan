@@ -34,6 +34,7 @@ async def chat_socket(ws: WebSocket, chat_id: str):
             return
 
     hub.join(chat_id, user.id, ws)
+    await ws.send_json({"type": "chat.ready"})
     try:
         while True:
             event = await ws.receive_json()
