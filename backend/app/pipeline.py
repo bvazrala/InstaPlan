@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from app.config import get_settings
 from app.db import engine
-from app.integrations import muse
+from app.integrations import muse_group
 from app.models import Fact, Message, Trip, User
 from app.privacy.access import member_ids
 from app.privacy.context import GroupContext, GroupFact, GroupMember, GroupMessage
@@ -49,14 +49,14 @@ async def on_group_message(chat_id: str, message_id: str) -> None:
                 return
             trip = open_trip(session, chat_id)
             if trip is None:
-                if muse.detect_trip_intent(msg.body):
+                if muse_group.detect_trip_intent(msg.body):
                     await hub.to_chat(chat_id, {"type": "trip.offer", "chatId": chat_id})
                 return
             if trip.stage != "collecting" or not get_settings().muse_api_key:
                 return
             ctx = group_context(session, chat_id, trip)
             new = next(m for m in ctx.recent_messages if m.id == msg.id)
-            for f in await run_in_threadpool(muse.extract_facts, ctx, new):
+            for f in await run_in_threadpool(muse_group.extract_facts, ctx, new):
                 fact = Fact(trip_id=trip.id, member_id=f.member_id, field=f.field, value=f.value,
                             score=f.score, required=f.required, source_message_id=msg.id, created_by=msg.sender_id)
                 session.add(fact)
@@ -69,7 +69,7 @@ async def on_group_message(chat_id: str, message_id: str) -> None:
 
 def generate_options(session: Session, trip: Trip) -> None:
     """R12–R14. Build order, each step its own function:
-    1. Shortlist 6–8 destinations from the trip facts (Muse, GroupContext only).
+    1. Shortlist 6–8 destinations from the trip facts (muse_group, GroupContext only).
     2. Price travel per member: serpapi_client.flights (or drive cost = miles ÷ mpg × gas price).
     3. Price lodging: serpapi_client.lodging; divide by head count.
     4. Estimate daily spend from serpapi_client.places price levels; label it an estimate.
